@@ -40,6 +40,10 @@ MIN_SUPPORT = 5
 
 
 def Usage():
+    ''' Description: Program Usage
+        Argument:    NONE
+        Return:	     NONE
+    '''
     print("FindLongDeletion.py -i <Input BAM> -o <Output SAM> -m <Minimal Segment Length> -M <Maximal Segment Length> -q <Minimal Quality> -c <Minimal Coverage> -s <Minimal Number of Supports>") 
     print("Argument:")
     print("\t-h: Usage")
@@ -51,7 +55,7 @@ def Usage():
     print("\t-c: Minimal ratio of overlapping reads [Default=%f]" % (MIN_COVERAGE) )
     print("\t-s: Minimal number of supports [Default=%d]" % (MIN_SUPPORT) )
     print("Usage:")
-    print("\t./FindLongDeletion.py -i ../../github/pydata-book/TSC320_S34_L001.srtd.reh.ddup.bam -o TSC320.sam -m 500 -M 50000 -q 10 -c 0.9 -s 5")
+    print("\t./FindLongDeletion.py -i ../example/example.bam -o ../example/example.ld.sam -m 500 -M 50000 -q 10 -c 0.9 -s 5")
 
     return
 
