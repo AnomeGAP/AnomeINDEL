@@ -7,7 +7,8 @@
 
 ## Scripts
 
-```ExtractUnMappedReads.py -i <Input BAM> -o <Output SAM>
+```
+ExtractUnMappedReads.py -i <Input BAM> -o <Output SAM>
 Argument:
 	-h: Usage
 	-i: Input BAM file
@@ -16,7 +17,8 @@ Usage:
 	./ExtractUnMappedReads.py -i ../example/example.bam -o ../example/example.unmapped.sam
 ```
 
-```FindLongDeletion.py -i <Input BAM> -o <Output SAM> -m <Minimal Segment Length> -M <Maximal Segment Length> -q <Minimal Quality> -c <Minimal Coverage> -s <Minimal Number of Supports>
+```
+FindLongDeletion.py -i <Input BAM> -o <Output SAM> -m <Minimal Segment Length> -M <Maximal Segment Length> -q <Minimal Quality> -c <Minimal Coverage> -s <Minimal Number of Supports>
 Argument:
 	-h: Usage
 	-i: Input BAM file
