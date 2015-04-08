@@ -1,5 +1,5 @@
 # AnomeINDEL
-
+  There are some useful scripts for manipulating BAM files.
 
 ## Requirement
 
@@ -34,5 +34,5 @@ Usage:
 
 See also https://github.com/AnomeGAP/AnomeINDEL
 
-last modified: 2015/04/09
+last modified at 2015/04/08
 
