@@ -34,5 +34,5 @@ Usage:
 
 See also https://github.com/AnomeGAP/AnomeINDEL
 
-last modified at 2015/04/08
+last modified at 2015/04/23
 
