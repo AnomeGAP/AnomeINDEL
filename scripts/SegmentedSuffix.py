@@ -48,12 +48,22 @@ def Usage():
 
     return
 
-def SuffixExtend(items, segment, min_len):
+def SuffixExtend(items, segment, min_len, idx):
     length = len(segment)-min_len+1
     for i in range(0,length):
-        item = segment[i:]
+        # remove the prefix 'N'
+        if segment[i] == 'N': continue
+
+        # remove the suffix 'N'
+        e = segment.find('N', i+1)
+        if e == -1: e = len(segment)
+        #print "e=%d [%s]" % (e, segment[i:])
+
+        if i+min_len > e: continue
+
+        item = "%s %d" % (segment[i:e], (idx+i))
         items.append(item)
-        print item
+        #print item
     return
 
 def SegmentedSuffix(ifn, slength, min_len, ofn):
@@ -65,21 +75,22 @@ def SegmentedSuffix(ifn, slength, min_len, ofn):
 
     for line in ifd:
         if re.match("^>", line):
-           print "Skip comment: %s" % (line)
-           continue
+            #print "Skip comment: %s" % (line)
+            continue
 
         line = line.strip()
-        print "line : %s" % (line)
+        #print "line : %s" % (line)
         seq += line.upper()
         length  = len(seq)
         while length > slength:
             segment = seq[:slength]
-            SuffixExtend(items, segment, min_len) 
+            SuffixExtend(items, segment, min_len, idx) 
             seq = seq[slength:]
+            idx += slength
             length = len(seq)
 
-    items.append(seq)
-    print "add %s" % (seq)
+    SuffixExtend(items, seq, min_len, idx)
+    #print "add %s" % (seq)
     ifd.close()
     items.sort()
     
