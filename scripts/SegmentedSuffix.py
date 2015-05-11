@@ -66,13 +66,60 @@ def SuffixExtend(items, segment, min_len, idx):
         #print item
     return
 
+def RowkeyExtract(items):
+    rowkeylist = []
+
+    ##items = ['AAAAAC 0', 'AAAAC 1', 'AAAC 2', 'AAC 3', 'AC 4', 'C 5']
+    previous = ""
+    value = []
+    for item in items:
+        (seq, idx) = item.split(' ', 1)
+
+        if (previous == ''):
+            previous = seq
+            value.append(idx)
+        elif (seq != previous):
+            length = min(len(seq), len(previous))
+            i = 0
+            while (i < length):
+                if (seq[i] != previous[i]): break
+                i+=1
+
+            if (i == length):
+                rowkey = previous
+            else:    
+                rowkey = previous[:i+1]
+            R2P = previous[:i]
+            P2S = "%s$" % (previous[i:])
+
+            item = "%s %s %s %s" % (rowkey, R2P, P2S, value)
+            print item
+            rowkeylist.append(item)
+
+            #reset
+            previous = seq
+            value = [idx]
+        else:
+            value.append(idx)
+
+    return rowkeylist
+
+def OutputFile(ofn, items):
+    ofd = open(ofn, "w")
+    for item in items:
+        ofd.write("%s\n" % item)
+
+    ofd.close()
+    return    
+
 def SegmentedSuffix(ifn, slength, min_len, ofn):
-    ifd = open(ifn, "r")
     total_length = 0
     idx = 0
     seq = ""
     items = []
 
+    ifd = open(ifn, "r")
+    ##Read sequence and segment them with length of slength
     for line in ifd:
         if re.match("^>", line):
             #print "Skip comment: %s" % (line)
@@ -89,16 +136,22 @@ def SegmentedSuffix(ifn, slength, min_len, ofn):
             idx += slength
             length = len(seq)
 
+    ##Extend the last segment of a given sequence
     SuffixExtend(items, seq, min_len, idx)
     #print "add %s" % (seq)
     ifd.close()
+
+    #Sort all of suffix
     items.sort()
     
-    ofd = open(ofn, "w")
-    for item in items:
-        ofd.write("%s\n" % item)
+    ##Extract all of rowkey by pairwise comparison
+    rowkeylist = RowkeyExtract(items)
 
-    ofd.close()
+    #Sort all of rowkey
+    rowkeylist.sort()
+
+    #Output rowkeys and their columns
+    OutputFile(ofn, rowkeylist)
     return
 
 def main(argv):
