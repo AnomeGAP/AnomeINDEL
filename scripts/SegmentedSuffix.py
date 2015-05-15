@@ -18,12 +18,13 @@
 #
 # @author  Chung-Tsai Su(chungtsai_su@anome.com.tw)
 #
-# @date    2015/05/15
+# @date    2015/05/14
 #
-# @version 1.0
+# @version 0.1
 #
 # @remark
-#
+#           2015/5/14 (0.1) generate rowkey and its column
+
 
 import sys
 import getopt
@@ -32,21 +33,22 @@ import math
 import re
 from collections import defaultdict
 from datetime import datetime
+from sets import Set
 
 SEGMENT_LENGTH=200
 MINIMAL_LENGTH=10
-start_time = datetime.now()
+gStartTtime = datetime.now()
 
-def log_start():
-    global start_time 
-    start_time = datetime.now()
+def TimeLog_init():
+    global gStartTtime 
+    gStartTtime = datetime.now()
     return
 
-def log_time(msg):
-    global start_time
-    end_time = datetime.now()
-    print('{}: %s'.format(end_time - start_time) % (msg))
-    start_time = end_time
+def TimeLog_write(msg):
+    global gStartTtime
+    lEndTime = datetime.now()
+    print('{}: %s'.format(lEndTime - gStartTtime) % (msg))
+    gStartTtime = lEndTime
     return
 
 def Usage():
@@ -90,7 +92,7 @@ def CommonPrefixExtract(items):
     prefixlist = []
 
     #items = ['AAAAAC 0', 'AAAAC 1', 'AAAC 2', 'AAAC 10', 'AAC 3', 'AC 4', 'AC 20', 'C 5', 'C 60', 'GAAA 100', 'GACC 200', 'TAAA 300', 'TTTT 400']
-    #items = ['AAAAA 1', 'AAAAA 10', 'AACAA 15', 'AACAA 33', 'AAGGG 25', 'CAAAA 9', 'CAACA 27', 'CAACA 52', 'CACCC 37', 'GGGGG 70']
+    items = ['AAAAA 1', 'AAAAA 10', 'AACAA 15', 'AACAA 33', 'AAGGG 25', 'CAAAA 9', 'CAACA 27', 'CAACA 52', 'CACCC 37', 'GGGGG 70']
 
     ##Round 1: aggregate the same suffix sequence together
     previous = ""
@@ -140,34 +142,38 @@ def CommonPrefixExtract(items):
 
     return prefixlist
 
-def AddRowkey(rowkeylist, rowkey, R2P, P2S, value):
-    item = "[%s] [%s] [%s] [%s]" % (rowkey, R2P, P2S, value)
+def AddRowkey(rowkeylist, rowkey, R2P, P2S, Schildern, Spos):
+    item = "[%s] [%s] [%s] [%s] [%s]" % (rowkey, R2P, P2S, Schildern, Spos)
     #print item
     rowkeylist.append(item)
     return
 
 def RowkeyExtract(items):
-    rowkeylist = []
+    Lrowkey = []
 
     ##Round 3: Extract rowkey 
     pre_R2P = ""
     pre_part1 = ""
-    next_list = defaultdict(str)
+    Schildren = Set()
     R2P = ""
     P2S = ""
+    Spos = Set()
     #print "Rowkey:"
     for item in items:
-        (part1, part2, value) = item.split(' ', 2)
-        #print "%s %s$ %s" % (part1, part2, value)
+        ## common suffix, uncommon suffix, position list
+        (part1, part2, Lpos) = item.split(' ', 2)
+        Lpos = eval(Lpos)
+        #print "%s %s$ %s" % (part1, part2, Lpos)
+
         if (part2 == ""): part2 = "$"
 
         if (pre_part1 == part1):
-            next_list[part2[:1]] = 1
+            Schildren.add( part2[:1] )
+            Spos = Spos.union(Lpos)
         else:
             ##output
             rowkey = "%s.%s" % (R2P, P2S[:1])
-            n = next_list.keys()
-            AddRowkey(rowkeylist, rowkey, R2P, P2S, n)
+            AddRowkey(Lrowkey, rowkey, R2P, P2S, Schildren, Spos)
             ##reset
             idx = part1.find(pre_part1)
             if (idx != 0):
@@ -185,16 +191,14 @@ def RowkeyExtract(items):
             pre_part1 = part1
             R2P = part1[:idx]
             P2S = part1[idx:]
-            next_list = defaultdict(str)
-            next_list[part2[:1]] = 1
+            Schildren = Set([part2[:1]])
+            Spos = Set(Lpos)
             #print "idx=%d pre_R2P=[%s] pre_part1=[%s] R2P=[%s], P2S=[%s]" % (idx, pre_R2P, pre_part1, R2P, P2S)
     if (pre_part1 != ""):
         rowkey = "%s.%s" % (R2P, P2S[:1])
-        n = next_list.keys()
-        AddRowkey(rowkeylist, rowkey, R2P, P2S, n)
+        AddRowkey(Lrowkey, rowkey, R2P, P2S, Schildren, Spos)
 
-
-    return rowkeylist
+    return Lrowkey
 
 def OutputFile(ofn, items):
     ofd = open(ofn, "w")
@@ -230,29 +234,29 @@ def SegmentedSuffix(ifn, slength, min_len, ofn):
 
     ##Extend the last segment of a given sequence
     SuffixExtend(items, seq, min_len, idx)
-    log_time("SuffixExtend()")
+    TimeLog_write("SuffixExtend()")
     #print "add %s" % (seq)
     ifd.close()
 
     #Sort all of suffix
     items.sort()
-    log_time("items.sort()")
+    TimeLog_write("items.sort()")
 
     ##Extract all of common prefix by pairwise comparison
     prefixlist = CommonPrefixExtract(items)
-    log_time("CommonPrefixExtract()")
+    TimeLog_write("CommonPrefixExtract()")
 
     #Sort all of rowkey
     prefixlist.sort()
-    log_time("prefixlist.sort()")
+    TimeLog_write("prefixlist.sort()")
 
     ###Extract all of rowkey by sorted prefix list
     rowkeylist = RowkeyExtract(prefixlist)
-    log_time("RowkeyExtract()")
+    TimeLog_write("RowkeyExtract()")
 
     #Output rowkeys and their columns
     OutputFile(ofn, rowkeylist)
-    log_time("OutputFile()")
+    TimeLog_write("OutputFile()")
     return
 
 def main(argv):
@@ -260,6 +264,8 @@ def main(argv):
     slength = SEGMENT_LENGTH
     min_len = MINIMAL_LENGTH
     ofile = ""
+
+    TimeLog_init()
 
     try:
         opts, args = getopt.getopt(argv,"hi:l:d:o:")
@@ -291,7 +297,6 @@ def main(argv):
     if (ofile == ""):
         ofile = "%s.suffix.csv" % (ifile)
 
-    log_start()
 
     #Main Function
     SegmentedSuffix(ifile, slength, min_len, ofile)
