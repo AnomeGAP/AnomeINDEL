@@ -56,7 +56,7 @@ def Usage():
     print("Argument:")
     print("\t-h: Usage")
     print("\t-i: Input FASTA file")
-    print("\t-l: Segment length [Default:%d]" % (SEGMENT_LENGTH))
+    print("\t-l: Segmentation length [Default:%d]" % (SEGMENT_LENGTH))
     print("\t-d: Minimal length of suffix [Default:%d]" % (MINIMAL_LENGTH))
     print("\t-o: Output CSV file")
     print("Usage:")
@@ -80,19 +80,46 @@ def SuffixExtend(items, segment, min_len, idx):
         item = "%s %d" % (segment[i:e], (idx+i))
         items.append(item)
         #print item
+
     return
 
-def AddCommonPrefix(prefixlist, R2P, P2S, value):
-    item = "%s %s %s" % (R2P, P2S, value)
-    #print item
-    prefixlist.append(item)
+def AddCommonPrefix(Dprefix, DSamePrefix, R2P, P2S, value):
+    item = "%s %s" % (R2P, P2S)
+    #print "[%s] %s" % (item, value)
+    Dprefix[item] = Dprefix[item].union(eval(value))
+    
+    ## padding position information if same prefix
+    key = ".%s" % (R2P)
+    DSamePrefix[key].add(item)
+    #print "%s add [%s]" % (key, item)
+    
+    return
+
+def UpdatePosition(Dprefix, DSamePrefix, seq, value):
+    if (seq == ""): return
+
+    ##debug
+    #return
+
+    length = len(seq) - 1
+    while length >= 0:
+        item = ".%s" % (seq[:length])
+        #print "check [%s]" % (item)
+        if item in DSamePrefix:
+            for key in DSamePrefix[item]:
+                #print "Add %s into %s [%s][%s]" % (value, key, seq, item)
+                Dprefix[key] = Dprefix[key].union(value)
+
+        length = length - 1
+    
     return
 
 def CommonPrefixExtract(items):
-    prefixlist = []
+    Dprefix = defaultdict(Set)
+    DSamePrefix = defaultdict(Set)
 
     #items = ['AAAAAC 0', 'AAAAC 1', 'AAAC 2', 'AAAC 10', 'AAC 3', 'AC 4', 'AC 20', 'C 5', 'C 60', 'GAAA 100', 'GACC 200', 'TAAA 300', 'TTTT 400']
-    items = ['AAAAA 1', 'AAAAA 10', 'AACAA 15', 'AACAA 33', 'AAGGG 25', 'CAAAA 9', 'CAACA 27', 'CAACA 52', 'CACCC 37', 'GGGGG 70']
+    #items = ['AAAAA 1', 'AAAAA 10', 'AACAA 15', 'AACAA 33', 'AAGGG 25', 'CAAAA 9', 'CAACA 27', 'CAACA 52', 'CACCC 37', 'GGGGG 70']
 
     ##Round 1: aggregate the same suffix sequence together
     previous = ""
@@ -117,33 +144,62 @@ def CommonPrefixExtract(items):
         temp = "%s %s" % (previous, value)
         #print temp
         aggregated.append(temp)
+    TimeLog_write("     Round 1: aggregate the same suffix")
 
     ##Round 2: Extract common prefix 
     previous = ""
     pre_idx = []
     for item in aggregated:
         (seq, idx) = item.split(' ', 1)
-
+        #print "%s %s" % (seq, idx)
         if (previous != ''):
             length = min(len(seq), len(previous))
             i = 0
             while (i < length):
                 if (seq[i] != previous[i]): break
                 i+=1
-            AddCommonPrefix(prefixlist, previous[:i], previous[i:], pre_idx)
-            AddCommonPrefix(prefixlist, seq[:i], seq[i:], idx)
+            AddCommonPrefix(Dprefix, DSamePrefix, previous[:i], previous[i:], pre_idx)
+            AddCommonPrefix(Dprefix, DSamePrefix, seq[:i], seq[i:], idx)
         else:
-            AddCommonPrefix(prefixlist, "", seq, idx)
-        AddCommonPrefix(prefixlist, seq, "", idx)        
-
+            AddCommonPrefix(Dprefix, DSamePrefix, "", seq, idx)
+        AddCommonPrefix(Dprefix, DSamePrefix, seq, "", idx) 
+ 
         #reset
         previous = seq
         pre_idx = idx
+    TimeLog_write("     Round 2: Extract common prefix")
+
+    ##Round 3: update position information
+    items = Dprefix.keys()
+    items.sort()
+    i = 0
+    for item in items:
+        #if (i % 100 = 0):
+        #    print "%d" % (i)
+        i += 1
+        (part1, part2) = item.split(' ', 1)
+        #print "[%s] [%s] [%s]" % (part1, part2, Dprefix[item])
+        ## Update position information if same prefix for each previous record
+        if (part2 != ""):
+            UpdatePosition(Dprefix, DSamePrefix, part1, Dprefix[item])
+    TimeLog_write("     Round 3: update position information")
+
+
+    ## Round 4: Generate prefix list
+    ## Covert dict to list
+    keys = Dprefix.keys()
+    keys.sort()
+    prefixlist = []
+    for k in keys:
+        prefixlist.append("%s %s" % (k, Dprefix[k]))
+
+    print "Total of items for common prefix list : %d" % (len(Dprefix))    
+    TimeLog_write("     Round 4: Generate prefix list")
 
     return prefixlist
 
 def AddRowkey(rowkeylist, rowkey, R2P, P2S, Schildern, Spos):
-    item = "[%s] [%s] [%s] [%s] [%s]" % (rowkey, R2P, P2S, Schildern, Spos)
+    item = "[%s] [%s] [%s] [%s] %d [%s]" % (rowkey, R2P, P2S, Schildern, len(Spos), Spos)
     #print item
     rowkeylist.append(item)
     return
@@ -213,6 +269,7 @@ def SegmentedSuffix(ifn, slength, min_len, ofn):
     idx = 0
     seq = ""
     items = []
+    moving_window = int(slength / 2)
 
     ifd = open(ifn, "r")
     ##Read sequence and segment them with length of slength
@@ -228,14 +285,21 @@ def SegmentedSuffix(ifn, slength, min_len, ofn):
         while length > slength:
             segment = seq[:slength]
             SuffixExtend(items, segment, min_len, idx) 
-            seq = seq[slength:]
-            idx += slength
+
+            #move to the next segment
+            seq = seq[moving_window:]
+            idx += moving_window
+            total_length += moving_window
             length = len(seq)
 
     ##Extend the last segment of a given sequence
-    SuffixExtend(items, seq, min_len, idx)
+    if (length > 0):
+        SuffixExtend(items, seq, min_len, idx)
+        total_length += len(seq)
+    print "Total length of input sequence = %d" % (total_length)
+    print "Number of suffix = %d" % (len(items))
+
     TimeLog_write("SuffixExtend()")
-    #print "add %s" % (seq)
     ifd.close()
 
     #Sort all of suffix
@@ -247,7 +311,7 @@ def SegmentedSuffix(ifn, slength, min_len, ofn):
     TimeLog_write("CommonPrefixExtract()")
 
     #Sort all of rowkey
-    prefixlist.sort()
+    ##prefixlist.sort()
     TimeLog_write("prefixlist.sort()")
 
     ###Extract all of rowkey by sorted prefix list
@@ -279,6 +343,8 @@ def main(argv):
             sys.exit()
         elif opt in ("-i"):
             ifile = arg
+        elif opt in ("-l"):
+            slength = int(arg)
         elif opt in ("-d"):
             min_len = int(arg)
         elif opt in ("-o"):
