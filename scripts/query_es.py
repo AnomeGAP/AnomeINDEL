@@ -24,11 +24,12 @@
 # @remark
 #
 
-__author__ = 'chungtsai_su'
-
 import sys
 import getopt
 from elasticsearch import Elasticsearch
+
+ES_SERVER_IP="140.112.183.200"
+ES_SERVER_PORT=9200
 
 def Usage():
     ''' Description: Program Usage
@@ -60,15 +61,35 @@ def main(argv):
         elif opt in ("-q"):
             rs = arg
 
-    es = Elasticsearch(hosts=[{"host": "140.112.183.200","port": 9200}])
+    es = Elasticsearch(hosts=[{"host": ES_SERVER_IP,"port": ES_SERVER_PORT}])
 
     ##TODO: add your query here
     result = es.search(index="anome_base",doc_type="anome_table",
                         body={"query": {"match": {"dbsnp_rs":rs}}})
 
-    print("Query Result:\n")
-    print("%s" % (result))
-    
+    #print("Query Result:\n")
+    #print("%s\n" % (result))
+
+    hits = result["hits"]
+    count = hits["total"]
+
+    print("There are %d documents matched by the query" % (count))
+    for item in hits["hits"]:
+        source = item["_source"]
+        print("\t_id=%s" % (item["_id"]))
+        print("\tdbSNP id: %s" % (source["dbsnp_rs"]))
+        print("\tid: %s" % (source["id"]))
+        if "1000genome_anome_tot_maf" in source:
+            print("\t1000genome_anome_tot_maf=%.4f" % (source["1000genome_anome_tot_maf"]))
+            print("\t1000genome_anome_afr_maf=%.4f" % (source["1000genome_anome_afr_maf"]))
+            print("\t1000genome_anome_amr_maf=%.4f" % (source["1000genome_anome_amr_maf"]))
+            print("\t1000genome_anome_eur_maf=%.4f" % (source["1000genome_anome_eur_maf"]))
+            print("\t1000genome_anome_eas_maf=%.4f" % (source["1000genome_anome_eas_maf"]))
+            print("\t1000genome_anome_sas_maf=%.4f" % (source["1000genome_anome_sas_maf"]))
+        else:
+            print("\tnot in the 1000 Genome Project")
+        print("")
+
     return
 
 if __name__ == '__main__':
