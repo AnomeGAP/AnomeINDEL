@@ -29,7 +29,7 @@ import getopt
 import os.path
 import math
 from collections import defaultdict
-import pysam
+import pysam    ##http://pysam.readthedocs.org/en/latest/api.html
 
 #Default Parameter
 MIN_SEGMENTLENGTH = 500
@@ -53,6 +53,12 @@ def Usage():
 def ExtractUnMappedReads(ifn, ofn):
     samfile = pysam.AlignmentFile(ifn, "rb")
     output = pysam.AlignmentFile(ofn, "wh", template=samfile)
+
+    print("Number of mapped reads = %d" % (samfile.mapped))
+    print("Number of unmapped reads = %d" % (samfile.unmapped))
+    print("Unmapped ratio = %.2f%%" % ((float)(samfile.unmapped*100)/(samfile.mapped+samfile.unmapped) ))
+    print("nocoordinate=%d" % (samfile.nocoordinate))
+    print("")
     num_reads = 0
     num_unmapped = 0
 
@@ -63,7 +69,7 @@ def ExtractUnMappedReads(ifn, ofn):
 
         num_reads += 1
 
-    print "Number of reads = %d, Number of mapped reads=%d, Number of unmapped reads=%d (%.2f%%)" % ( num_reads, num_reads - num_unmapped, num_unmapped, (float)(num_unmapped*100)/num_reads )
+    print("Number of reads = %d, Number of mapped reads=%d, Number of unmapped reads=%d (%.2f%%)" % ( num_reads, num_reads - num_unmapped, num_unmapped, (float)(num_unmapped*100)/num_reads ))
 
     output.close()
     samfile.close()
