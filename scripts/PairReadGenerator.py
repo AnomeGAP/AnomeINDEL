@@ -103,7 +103,6 @@ def generator_reads(o1fd, o2fd, efd, idx, start, ref):
         # add noise
         l1 = list(r1)
         l2 = list(r2)
-        efd.write("#ID\t#pair\tPOS\tREF\tALT\tREF_POS\n")
         for j in range(READ_LENGTH):
             if random.randrange(int(1/SEQUENCE_ERROR_RATE)) == 0:
                 rep = mutate(l1[j])
@@ -116,9 +115,9 @@ def generator_reads(o1fd, o2fd, efd, idx, start, ref):
                 l2[j] = rep
 
         r1 = "".join(l1)
-        o1fd.write(">READ%d:1\t%d\n%s\n+\n%s\n" % (idx, start+s1, r1, "="*READ_LENGTH))
+        o1fd.write(">READ%d\t1\t%d\n%s\n+\n%s\n" % (idx, start+s1, r1, "="*READ_LENGTH))
         r2 = "".join(l2)
-        o2fd.write(">READ%d:2\t%d\n%s\n+\n%s\n" % (idx, start+s2+READ_LENGTH, r2, "="*READ_LENGTH))
+        o2fd.write(">READ%d\t2\t%d\n%s\n+\n%s\n" % (idx, start+s2+READ_LENGTH, r2, "="*READ_LENGTH))
         idx += 1
         if idx % 1000 == 0:
             print("%d\t%d" % (idx, start))
@@ -135,6 +134,8 @@ def pair_read_generator(ifn, ofn):
     start = 0
     idx = 1
 
+    # write header
+    efd.write("#ID\t#pair\tPOS\tREF\tALT\tREF_POS\n")
     for line in ifd:
         if re.match(">", line):
             continue
