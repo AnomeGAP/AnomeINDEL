@@ -90,7 +90,7 @@ def reverse_complement(read):
     return "".join(slist)
 
 
-def generator_reads(o1fd, o2fd, efd, idx, start, ref):
+def generator_reads(o1fd, o2fd, o3fd, efd, idx, start, ref):
 
     for i in range(int(COVERAGE/2)):
         # random
@@ -115,9 +115,12 @@ def generator_reads(o1fd, o2fd, efd, idx, start, ref):
                 l2[j] = rep
 
         r1 = "".join(l1)
-        o1fd.write(">READ%d\t1\t%d\n%s\n+\n%s\n" % (idx, start+s1, r1, "="*READ_LENGTH))
+        o1fd.write("@READ%d\t1\t%d\n%s\n+\n%s\n" % (idx, start+s1, r1, "I"*READ_LENGTH))
         r2 = "".join(l2)
-        o2fd.write(">READ%d\t2\t%d\n%s\n+\n%s\n" % (idx, start+s2+READ_LENGTH, r2, "="*READ_LENGTH))
+        o2fd.write("@READ%d\t2\t%d\n%s\n+\n%s\n" % (idx, start+s2+READ_LENGTH, r2, "I"*READ_LENGTH))
+        # pair
+        o3fd.write("@READ%d/1\t%d\n%s\n+\n%s\n" % (idx, start+s1, r1, "I"*READ_LENGTH))
+        o3fd.write("@READ%d/2\t%d\n%s\n+\n%s\n" % (idx, start+s2+READ_LENGTH, r2, "I"*READ_LENGTH))
         idx += 1
         if idx % 1000 == 0:
             print("%d\t%d" % (idx, start))
@@ -126,8 +129,9 @@ def generator_reads(o1fd, o2fd, efd, idx, start, ref):
 
 
 def pair_read_generator(ifn, ofn):
-    o1fd = open(ofn + "_1.fa", "w")
-    o2fd = open(ofn + "_2.fa", "w")
+    o1fd = open(ofn + "_1.fq", "w")
+    o2fd = open(ofn + "_2.fq", "w")
+    o3fd = open(ofn + "_pair.fq", "w")
     efd = open(ofn + "_error.tsv", "w")
     ifd = open(ifn, "r")
     ref = ""
@@ -157,12 +161,14 @@ def pair_read_generator(ifn, ofn):
             ref = ref[i:]
             continue
 #        print("%6d %s" % (start, ref))
-        idx = generator_reads(o1fd, o2fd, efd, idx, start, ref)
-        ref = ref[int((SEGMENT_LENGTH+2*DEVIATION_SEGMENT_LENGTH)/2):]
-        start += int((SEGMENT_LENGTH+2*DEVIATION_SEGMENT_LENGTH)/2)
+        idx = generator_reads(o1fd, o2fd, o3fd, efd, idx, start, ref)
+        step_size = int((SEGMENT_LENGTH+2*DEVIATION_SEGMENT_LENGTH)/2) - int(DEVIATION_SEGMENT_LENGTH/2)
+        ref = ref[step_size:]
+        start += step_size
 
     ifd.close()
     efd.close()
+    o3fd.close()
     o2fd.close()
     o1fd.close()
 
