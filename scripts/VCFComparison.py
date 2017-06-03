@@ -158,44 +158,23 @@ def VCFComparision(ifn, ifn1, ifn2, pos):
 
     counter = 0
     ## data extraction
-    ifd = open(ifn1, "r")
     ofd = open(ifn1+".3.vcf", "w")
-    for line in ifd:
-        if re.match("^#", line):
-            #print "Skip comment: %s" % (line)
-            ofd.write("%s" % line)
-            continue
-
-        line = line.strip()
-        items = line.split('\t')
-        key = MakeKey(pos, "", items)
+    for key in answer.keys():
 
         if answer[key] == 3:
             ofd.write("%s\n" % line)
             counter += 1
     ofd.close()
-    ifd.close()
     print("%s has %d variants" % (ifn1+".3.vcf", counter))
 
     counter = 0
     ## data extraction
-    ifd = open(ifn2, "r")
     ofd = open(ifn2+".5.vcf", "w")
-    for line in ifd:
-        if re.match("^#", line):
-            #print "Skip comment: %s" % (line)
-            ofd.write("%s" % line)
-            continue
-
-        line = line.strip()
-        items = line.split('\t')
-        key = MakeKey(pos, "", items)
-
+    for key in answer.keys():
         if answer[key] == 5:
             ofd.write("%s\n" % line)
             counter += 1
     ofd.close()
-    ifd.close()
     print("%s has %d variants" % (ifn2+".5.vcf", counter))
 
     return
