@@ -160,7 +160,6 @@ def VCFComparision(ifn, ifn1, ifn2, pos):
     ## data extraction
     ofd = open(ifn1+".3.vcf", "w")
     for key in answer.keys():
-
         if answer[key] == 3:
             ofd.write("%s\n" % line)
             counter += 1

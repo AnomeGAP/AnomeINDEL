@@ -40,26 +40,34 @@ def _usage():
         Return:	     NONE
     """
     print(
-        "CalErrorCorrectionRate.py -i <FASTQ file> -a <Answer file> -o <Output file>")
+        "CalErrorCorrectionRate.py -i <FASTQ file> [-j <FASTQ file>] -a <Answer file> -o <Output file>")
     print("Argument:")
     print("\t-h: Usage")
     print("\t-i: <FASTQ file>")
+    print("\t-j: <FASTQ file>")
     print("\t-a: <Answer file>")
     print("\t-o: <Output file>")
 
     print("Usage:")
-    print("\tpython3 ~/src/github/AnomeINDEL/scripts/CalErrorCorrectionRate.py -i ~/data/hg19/chr22.corrected.pp.fq "
-          "-a ~/data/hg19/chr22_error.tsv -o ~/data/hg19/chr22.corrected.pp.fq.ans")
+    print("\tpython3 ~/src/github/AnomeINDEL/scripts/CalErrorCorrectionRate.py -i ~/data/hg19/sga/chr22.ec.pp.fq "
+          "-a ~/data/hg19/chr22_error.tsv -o ~/data/hg19/sga/chr22.ec.pp.fq.ans")
     print("\tpython3 ~/src/github/AnomeINDEL/scripts/CalErrorCorrectionRate.py -i ~/data/hg19/chr22.corrected.pp.fq.2k "
           "-a ~/data/hg19/chr22_error.tsv.20 -o ~/data/hg19/chr22.corrected.pp.fq.ans")
+    print("\tpython3 ~/src/github/AnomeINDEL/scripts/CalErrorCorrectionRate.py "
+          "-i ~/data/hg19/bless/HG19.chr22.bless.1.corrected.fastq "
+          "-j ~/data/hg19/bless/HG19.chr22.bless.2.corrected.fastq "
+          "-a ~/data/hg19/chr22_error.tsv "
+          "-o ~/data/hg19/bless/HG19.chr22.bless.ans")
 
     return
 
 
-def cal_ec(ifn, afn, ofn):
+def cal_ec(ifn, i2fn, afn, ofn):
     ofd = open(ofn, "w")
     afd = open(afn, "r")
     ifd = open(ifn, "r")
+    if i2fn != "":
+        i2fd = open(i2fn, "r")
     total = 0
     num_checked = 0
     num_corrected = 0
@@ -83,7 +91,7 @@ def cal_ec(ifn, afn, ofn):
         if re.match("^@", line):
             b_seq = True
             items = line.strip().split("/")
-            id = items[0][5:] + "\t" + items[1]
+            id = str(int(items[0][10:])) + "\t" + items[1]
             #print("%s" % id)
             continue
         if not b_seq:
@@ -106,12 +114,42 @@ def cal_ec(ifn, afn, ofn):
 
         b_seq = False
 
+    if i2fn != "":
+        for line in i2fd:
+            if re.match("^@", line):
+                b_seq = True
+                items = line.strip().split("/")
+                id = str(int(items[0][10:])) + "\t" + items[1]
+                #print("%s" % id)
+                continue
+            if not b_seq:
+                continue
+
+            if id in vhash:
+                seq = list(line.strip())
+                # print("%s" % seq)
+                for val in vhash[id]:
+                    # print("%s" % val)
+                    items = val.split(":")
+                    if seq[int(items[0])] == items[1]:
+                        num_corrected += 1
+                        # #ID\t#pair\tPOS\tREF\tALT\tREF_POS\tCorrected\n
+                        ofd.write("%s\t%s\t%s\t%s\t%s\t%d\n" % (id, items[0], items[1], items[2], items[3], 1))
+                    else:
+                        ofd.write("%s\t%s\t%s\t%s\t%s\t%d\n" % (id, items[0], items[1], items[2], items[3], 0))
+
+                    num_checked += 1
+
+            b_seq = False
+
     print("Total=%d" % total)
     print("Corrected=%d" % num_corrected)
     print("Checked=%d" % num_checked)
     print("Error Correction Rate = %.2f%%" % (num_corrected*100/num_checked))
 
     ifd.close()
+    if i2fn != "":
+        i2fd.close()
     afd.close()
     ofd.close()
 
@@ -120,11 +158,12 @@ def cal_ec(ifn, afn, ofn):
 
 def main(argv):
     infile = ""
+    in2file = ""
     ansfile = ""
     outfile = ""
 
     try:
-        opts, args = getopt.getopt(argv, "hi:a:o:")
+        opts, args = getopt.getopt(argv, "hi:j:a:o:")
     except getopt.GetoptError:
         _usage()
         sys.exit(1)
@@ -136,6 +175,8 @@ def main(argv):
         elif opt in "-i":
             infile = arg
             outfile = infile + ".out"
+        elif opt in "-j":
+            in2file = arg
         elif opt in "-a":
             ansfile = arg
         elif opt in "-o":
@@ -150,7 +191,7 @@ def main(argv):
         sys.exit(3)
 
     # Main Function
-    cal_ec(infile, ansfile, outfile)
+    cal_ec(infile, in2file, ansfile, outfile)
 
     return
 

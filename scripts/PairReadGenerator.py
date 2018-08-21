@@ -32,13 +32,11 @@ import random
 
 # Parameter setting
 
-
-READ_LENGTH = 101
-SEGMENT_LENGTH = 400
-DEVIATION_SEGMENT_LENGTH = 100
+READ_LENGTH = 151
+SEGMENT_LENGTH = 70
+DEVIATION_SEGMENT_LENGTH = 150
 COVERAGE = 30
-SEQUENCE_ERROR_RATE=0.01
-
+SEQUENCE_ERROR_RATE = 0.001
 
 def _usage():
     """ Description: Program Usage
@@ -60,7 +58,7 @@ def _usage():
 
     print("Usage:")
     print("\tpython3 ~/src/github/AnomeINDEL/scripts/PairReadGenerator.py -i ~/data/hg19/chr22.fa -o ~/data/hg19/chr22 "
-          "-l 101 -s 400 -d 100 -c 30 -e 0.01")
+          "-l 151 -s 700 -d 150 -c 30 -e 0.001")
 
     return
 
@@ -91,8 +89,9 @@ def reverse_complement(read):
 
 
 def generator_reads(o1fd, o2fd, o3fd, efd, idx, start, ref):
+    num_iteration = int(COVERAGE*(SEGMENT_LENGTH+2*DEVIATION_SEGMENT_LENGTH)/(2*2*READ_LENGTH))
 
-    for i in range(int(COVERAGE/2)):
+    for i in range(num_iteration):
         # random
         s1 = random.randrange(DEVIATION_SEGMENT_LENGTH)
         s2 = s1 + SEGMENT_LENGTH - READ_LENGTH + random.randrange(-DEVIATION_SEGMENT_LENGTH, DEVIATION_SEGMENT_LENGTH)
@@ -106,22 +105,35 @@ def generator_reads(o1fd, o2fd, o3fd, efd, idx, start, ref):
         for j in range(READ_LENGTH):
             if random.randrange(int(1/SEQUENCE_ERROR_RATE)) == 0:
                 rep = mutate(l1[j])
-                efd.write("%d\t1\t%d\t%s\t%s\t%d\n" % (idx, j, l1[j], rep, start+s1+j))
+                #efd.write("%d\t1\t%d\t%s\t%s\t%d\n" % (idx, j, l1[j], rep, start+s1+j))
+                efd.write("%d\t%d\t%s\t%s\t%d\n" % (idx, j, l1[j], rep, start+s1+j))
                 l1[j] = rep
         for j in range(READ_LENGTH):
             if random.randrange(int(1 / SEQUENCE_ERROR_RATE)) == 0:
                 rep = mutate(l2[j])
-                efd.write("%d\t2\t%d\t%s\t%s\t%d\n" % (idx, j, l2[j], rep, start+s2+READ_LENGTH-j))
+                #efd.write("%d\t2\t%d\t%s\t%s\t%d\n" % (idx, j, l2[j], rep, start+s2+READ_LENGTH-j))
+                efd.write("%d\t%d\t%s\t%s\t%d\n" % (idx+1, j, l2[j], rep, start+s2+READ_LENGTH-j))
                 l2[j] = rep
 
+        # #HWI-ST310_0324:1:1101:14010:3169#ACAGTG/1
+        # r1 = "".join(l1)
+        # o1fd.write("@READ5566:%09d/1\n%s\n+READ5566:%09d/1\n%s\n" % (idx, r1, idx, "I"*READ_LENGTH))
+        # r2 = "".join(l2)
+        # o2fd.write("@READ5566:%09d/2\n%s\n+READ5566:%09d/2\n%s\n" % (idx, r2, idx, "I"*READ_LENGTH))
+        # # pair
+        # o3fd.write("@READ5566:%09d/1\n%s\n+READ5566:%09d/1\n%s\n" % (idx, r1, idx, "I"*READ_LENGTH))
+        # o3fd.write("@READ5566:%09d/2\n%s\n+READ5566:%09d/2\n%s\n" % (idx, r2, idx, "I"*READ_LENGTH))
+
+        #E00247:267:HMVT3CCXX:1:1101:12875:2206 0000000000
         r1 = "".join(l1)
-        o1fd.write("@READ%d\t1\t%d\n%s\n+\n%s\n" % (idx, start+s1, r1, "I"*READ_LENGTH))
+        o1fd.write("@READ5566:%09d %09d\n%s\n+\n%s\n" % (idx, idx, r1, "I"*READ_LENGTH))
         r2 = "".join(l2)
-        o2fd.write("@READ%d\t2\t%d\n%s\n+\n%s\n" % (idx, start+s2+READ_LENGTH, r2, "I"*READ_LENGTH))
+        o2fd.write("@READ5566:%09d %09d\n%s\n+\n%s\n" % (idx, idx+1, r2, "I"*READ_LENGTH))
         # pair
-        o3fd.write("@READ%d/1\t%d\n%s\n+\n%s\n" % (idx, start+s1, r1, "I"*READ_LENGTH))
-        o3fd.write("@READ%d/2\t%d\n%s\n+\n%s\n" % (idx, start+s2+READ_LENGTH, r2, "I"*READ_LENGTH))
-        idx += 1
+        o3fd.write("@READ5566:%09d %09d\n%s\n+\n%s\n" % (idx, idx, r1, "I"*READ_LENGTH))
+        o3fd.write("@READ5566:%09d %09d\n%s\n+\n%s\n" % (idx, idx+1, r2, "I"*READ_LENGTH))
+
+        idx += 2
         if idx % 1000 == 0:
             print("%d\t%d" % (idx, start))
 
@@ -136,7 +148,8 @@ def pair_read_generator(ifn, ofn):
     ifd = open(ifn, "r")
     ref = ""
     start = 0
-    idx = 1
+    idx = 0
+    step_size = int((SEGMENT_LENGTH + 2 * DEVIATION_SEGMENT_LENGTH) / 2)
 
     # write header
     efd.write("#ID\t#pair\tPOS\tREF\tALT\tREF_POS\n")
@@ -162,7 +175,6 @@ def pair_read_generator(ifn, ofn):
             continue
 #        print("%6d %s" % (start, ref))
         idx = generator_reads(o1fd, o2fd, o3fd, efd, idx, start, ref)
-        step_size = int((SEGMENT_LENGTH+2*DEVIATION_SEGMENT_LENGTH)/2) - int(DEVIATION_SEGMENT_LENGTH/2)
         ref = ref[step_size:]
         start += step_size
 
