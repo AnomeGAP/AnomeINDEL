@@ -37,12 +37,12 @@ SEPERATOR = ":"
 REFERENCE_GENOME_PREFIX = "CR_"
 
 # #Parameter setting
-# THRESHOLD = 5  # <= (topscore - score)
-# MIN_BITSCORE = 150
-# MIN_SIMILARITY = 96  # percentage
-THRESHOLD = 10  # <= (topscore - score)
-MIN_BITSCORE = 0
-MIN_SIMILARITY = 0  # percentage
+THRESHOLD = 5  # <= (topscore - score)
+MIN_BITSCORE = 150
+MIN_SIMILARITY = 96  # percentage
+# THRESHOLD = 10  # <= (topscore - score)
+# MIN_BITSCORE = 0
+# MIN_SIMILARITY = 0  # percentage
 MAX_INSERTION_SIZE = 500
 PERCENTAGE_CONCURRENCE = 0.9
 
