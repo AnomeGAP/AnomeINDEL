@@ -45,6 +45,7 @@ MIN_SIMILARITY = 96  # percentage
 # MIN_SIMILARITY = 0  # percentage
 MAX_INSERTION_SIZE = 500
 PERCENTAGE_CONCURRENCE = 0.9
+CONTAMINANT = ["CR_195", "CR_487", "CR_475"]
 
 
 def _usage():
@@ -314,11 +315,16 @@ def output(h_read, ifn, ofn):
             items = list(line.strip().split(" "))
             name = items[2].split("/")[0]
             # print("name = %s\t%d\t%d" % (name, total, unknown))
-            ofd.write("%s\t%s\t%f\n" % (items[2], h_read[name], 0.5))
-            total += 1
-            h_cnt[h_read[name]] += 1
-            if h_read[name] == UNKNOWN:
+            if h_read[name] in str(CONTAMINANT):
+                ofd.write("%s\t%s\t%f\n" % (items[2], UNKNOWN, 0.5))
+                h_cnt[UNKNOWN] += 1
                 unknown += 1
+            else:
+                ofd.write("%s\t%s\t%f\n" % (items[2], h_read[name], 0.5))
+                h_cnt[h_read[name]] += 1
+                if h_read[name] == UNKNOWN:
+                    unknown += 1
+            total += 1
     ifd.close()
     ofd.close()
 
