@@ -46,6 +46,7 @@ MIN_SIMILARITY = 96  # percentage
 MAX_INSERTION_SIZE = 500
 PERCENTAGE_CONCURRENCE = 0.9
 CONTAMINANT = ["CR_195", "CR_487", "CR_475"]
+WEIGHT = 50
 
 
 def _usage():
@@ -54,12 +55,13 @@ def _usage():
         Return:	     NONE
     """
     print(
-        "BlastClustering.py -i <Alignment result for read1> -j <Alignment result for read2> "
+        "BlastClustering.py -i <Alignment result for read1> -j <Alignment result for read2> [-a <contig file>] "
         "-o <Genome Identification Output file> -m <Method>")
     print("Argument:")
     print("\t-h: Usage")
-    print("\t-i: <Blast alignment file>")
-    print("\t-j: <Blast alignment file>")
+    print("\t-i: <Blast alignment file for read1>")
+    print("\t-j: <Blast alignment file for read2>")
+    print("\t-a: <Blast alignment file for contig>")
     print("\t-o: <Output file>")
     print("\t-m: <method> (Default: 1)")
     print("\t\tMethod 1 (Aggressive Diversity) - first record (priority : r1 > r2)")
@@ -70,8 +72,8 @@ def _usage():
     print("Usage:")
     print("\tpython3 ./BlastClustering.py -i ../result/Hello_World_R1.tsv "
           "-j ../result/Hello_World_R2.tsv -m 1 -o ../result/Hello_World")
-    print("\tpython3 ./BlastClustering.py -i ../result/Hello_World_R1.tsv.G1 "
-          "-j ../result/Hello_World_R2.tsv.G1 -m 1 -o ../result/Hello_World")
+    print("\tpython3 ./BlastClustering.py -i ../result/Hello_World_R1.tsv "
+          "-j ../result/Hello_World_R2.tsv -a ../result/CR517/Hello_World.contigs.tsv -m 1 -o ../result/Hello_World")
     return
 
 
@@ -302,7 +304,7 @@ def read_blast_by_conservative(fn, fn2, h_mapping):
     return h_read
 
 
-def output(h_read, ifn, ofn):
+def output(h_read, ifn, ofn, no_qualified):
     h_cnt = defaultdict(int)
     total = 0
     unknown = 0
@@ -314,8 +316,7 @@ def output(h_read, ifn, ofn):
         if line.startswith("# Query:"):
             items = list(line.strip().split(" "))
             name = items[2].split("/")[0]
-            # print("name = %s\t%d\t%d" % (name, total, unknown))
-            if h_read[name] in str(CONTAMINANT):
+            if h_read[name] in str(CONTAMINANT) or no_qualified:
                 ofd.write("%s\t%s\t%f\n" % (items[2], UNKNOWN, 0.5))
                 h_cnt[UNKNOWN] += 1
                 unknown += 1
@@ -329,25 +330,29 @@ def output(h_read, ifn, ofn):
     ofd.close()
 
     max_confidence = 0.01
-    for i in range(518):
-        ref = "CR_%d" % i
-        if h_cnt[ref] / (total - unknown) > max_confidence:
-            max_confidence = h_cnt[ref] / (total - unknown)
+    if total > unknown:
+        for i in range(518):
+            ref = "CR_%d" % i
+            if h_cnt[ref] > (total - unknown) * max_confidence:
+                max_confidence = float(h_cnt[ref]) / (total - unknown)
 
     gifd = open(ofn + "_Genome_Identification.tsv", "w")
     gqfd = open(ofn + "_Genome_Quantification.tsv", "w")
     for i in range(518):
         ref = "CR_%d" % i
-        gifd.write("%s\t%f\n" % (ref, sqrt(h_cnt[ref] / (total - unknown) / max_confidence)))
-        gqfd.write("%s\t%f\n" % (ref, h_cnt[ref] / total))
-    gqfd.write("%s\t%f\n" % (UNKNOWN, unknown / total))
+        if no_qualified or total == unknown:
+            gifd.write("%s\t%f\n" % (ref, 0.0))
+        else:
+            gifd.write("%s\t%f\n" % (ref, sqrt((float(h_cnt[ref]) / (total - unknown)) / max_confidence)))
+        gqfd.write("%s\t%f\n" % (ref, float(h_cnt[ref]) / total))
+    gqfd.write("%s\t%f\n" % (UNKNOWN, float(unknown) / total))
     gqfd.close()
     gifd.close()
     return
 
 
-def blastclustering(ifn, i2fn, method, ofn):
-
+def blastclustering(ifn, i2fn, cfn, method, ofn):
+    no_qualified = False
     # Strategy:
     # Aggressive/Conservative - more UNKNOWN for Conservative (Properly paired)
     # Diversity/Focus - more species for diversity
@@ -355,12 +360,53 @@ def blastclustering(ifn, i2fn, method, ofn):
     # Method 2 (Conservative Diversity) - first properly paired record (priority: r1)
     # Method 3 (Aggressive Focus) - all high score record and then clustering
     # Method 4 (Conservative Focus) - all high score properly paired records and the clustering
-    if method == 1:
-        h_read = read_blast_by_aggressive(ifn, i2fn, {})
-        output(h_read, ifn, ofn)
-    elif method == 2:
-        h_read = read_blast_by_conservative(ifn, i2fn, {})
-        output(h_read, ifn, ofn)
+    if method == 1 or method == 2:
+        h_mapping = defaultdict(str)
+        if cfn != "":
+            (h_ref, h_relation) = read_blast(cfn)
+            if len(h_ref) == 0:
+                no_qualified = True
+                print("%s has no qualified contigs for CR517" % cfn)
+
+            # for key in h_ref.keys():
+            #     print("%s: %s" % (key, h_ref[key]))
+
+            for key, value in sorted(h_relation.items(), key=lambda item: (item[1], item[0]), reverse=True):
+                (id1, id2) = key.strip().split(":")
+                if h_ref[id1] >= h_ref[id2]:
+                    # print("%s: %s" % (key, value))
+                    if id1 not in h_mapping:
+                        if id2 not in h_mapping:
+                            h_mapping[id1] = id1
+                            if value >= PERCENTAGE_CONCURRENCE * h_ref[id2]:
+                                h_mapping[id2] = h_mapping[id1]
+                            else:
+                                h_mapping[id2] = id2
+                        elif h_ref[id1] <= h_ref[h_mapping[id2]]:
+                            h_mapping[id1] = h_mapping[id2]
+                    else:
+                        if id2 not in h_mapping:
+                            h_mapping[id2] = h_mapping[id1]
+                        elif h_ref[h_mapping[id2]] > h_ref[h_mapping[id1]]:  # and value >= 400:
+                            for k in h_mapping.keys():
+                                if h_mapping[k] == h_mapping[id1] and k != id1:
+                                    print("WARN: recursive update %s: %s=>%s" % (k, h_mapping[k], h_mapping[id2]))
+                                    h_mapping[k] = h_mapping[id2]
+                            h_mapping[id1] = h_mapping[id2]
+
+            # for key in h_mapping.keys():
+            #     print("%s: %s" % (key, h_mapping[key]))
+
+            if method == 1:
+                h_read = read_blast_by_aggressive(ifn, i2fn, h_mapping)
+            else:
+                h_read = read_blast_by_conservative(ifn, i2fn, h_mapping)
+        else:
+            if method == 1:
+                h_read = read_blast_by_aggressive(ifn, i2fn, {})
+            else:
+                h_read = read_blast_by_conservative(ifn, i2fn, {})
+        output(h_read, ifn, ofn, no_qualified)
     elif method == 3 or method == 4:
         h_mapping = defaultdict(str)
         (h_ref, h_relation) = read_blast(ifn)
@@ -369,6 +415,13 @@ def blastclustering(ifn, i2fn, method, ofn):
             h_ref[k] += h_ref2[k]
         for k in h_relation2.keys():
             h_relation[k] += h_relation2[k]
+
+        if cfn != "":
+            (h_cref, h_crelation) = read_blast(cfn)
+            for k in h_cref.keys():
+                h_ref[k] += WEIGHT * h_cref[k]
+            for k in h_crelation.keys():
+                h_relation[k] += WEIGHT * h_crelation[k]
 
         for key, value in sorted(h_ref.items(), key=lambda item: (item[1], item[0]), reverse=True):
             if value >= 300:
@@ -404,7 +457,7 @@ def blastclustering(ifn, i2fn, method, ofn):
         else:
             h_read = read_blast_by_conservative(ifn, i2fn, h_mapping)
 
-        output(h_read, ifn, ofn)
+        output(h_read, ifn, ofn, no_qualified)
 
     return
 
@@ -414,9 +467,10 @@ def main(argv):
     in2file = ""
     outfile = ""
     method = 1
+    contigfile = ""
 
     try:
-        opts, args = getopt.getopt(argv, "hi:j:o:m:")
+        opts, args = getopt.getopt(argv, "hi:j:a:o:m:")
     except getopt.GetoptError:
         _usage()
         sys.exit(1)
@@ -430,6 +484,8 @@ def main(argv):
             outfile = infile + "_output.tsv"
         elif opt in "-j":
             in2file = arg
+        elif opt in "-a":
+            contigfile = arg
         elif opt in "-m":
             method = int(arg)
         elif opt in "-o":
@@ -444,7 +500,7 @@ def main(argv):
         sys.exit(3)
 
     # Main Function
-    blastclustering(infile, in2file, method, outfile)
+    blastclustering(infile, in2file, contigfile, method, outfile)
 
     return
 
