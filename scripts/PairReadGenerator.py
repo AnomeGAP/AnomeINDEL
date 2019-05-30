@@ -58,7 +58,7 @@ def _usage():
 
     print("Usage:")
     print("\tpython3 ~/src/github/AnomeINDEL/scripts/PairReadGenerator.py -i ~/data/hg19/chr22.fa -o ~/data/hg19/chr22 "
-          "-l 151 -s 700 -d 150 -c 30 -e 0.001")
+          "-l 151 -s 700 -d 300 -c 30 -e 0.001")
 
     return
 
@@ -103,13 +103,13 @@ def generator_reads(o1fd, o2fd, o3fd, efd, idx, start, ref):
         l1 = list(r1)
         l2 = list(r2)
         for j in range(READ_LENGTH):
-            if random.randrange(int(1/SEQUENCE_ERROR_RATE)) == 0:
+            if SEQUENCE_ERROR_RATE and random.randrange(int(1/SEQUENCE_ERROR_RATE)) == 0:
                 rep = mutate(l1[j])
                 #efd.write("%d\t1\t%d\t%s\t%s\t%d\n" % (idx, j, l1[j], rep, start+s1+j))
                 efd.write("%d\t%d\t%s\t%s\t%d\n" % (idx, j, l1[j], rep, start+s1+j))
                 l1[j] = rep
         for j in range(READ_LENGTH):
-            if random.randrange(int(1 / SEQUENCE_ERROR_RATE)) == 0:
+            if SEQUENCE_ERROR_RATE and random.randrange(int(1 / SEQUENCE_ERROR_RATE)) == 0:
                 rep = mutate(l2[j])
                 #efd.write("%d\t2\t%d\t%s\t%s\t%d\n" % (idx, j, l2[j], rep, start+s2+READ_LENGTH-j))
                 efd.write("%d\t%d\t%s\t%s\t%d\n" % (idx+1, j, l2[j], rep, start+s2+READ_LENGTH-j))
