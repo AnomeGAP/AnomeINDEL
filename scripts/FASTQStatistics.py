@@ -32,7 +32,7 @@ ORI_LENGTH = 151
 UNIT = 100
 NUM_ELEMENT = 10
 # UNIT = 1000
-# NUM_ELEMENT = 100
+# NUM_ELEMENT = 50
 MAX_LENGTH = UNIT * NUM_ELEMENT
 
 
@@ -42,6 +42,8 @@ def usage():
     print("\t-h: Usage")
     print("Usage:")
     print("\tgzcat ntuh-assembly-result.fastq.gz | python ~/src/github/AnomeINDEL/scripts/FASTQStatistics.py > ntu-assembly-result.fastq.tsv")
+    print("\tgzcat ~/NA12878-novaseq/v1.0.2/result-1.0.2-qual.fq.gz | python ~/src/github/AnomeINDEL/scripts/FASTQStatistics.py > ~/NA12878-novaseq/v1.0.2/result-1.0.2-qual.tsv")
+    print("\tgzcat ~/NA12878-novaseq/v1.0.2/result-qual-fix.fq.gz | python ~/src/github/AnomeINDEL/scripts/FASTQStatistics.py > ~/NA12878-novaseq/v1.0.2/result-qual-fix.fq.tsv")
 
     return
 
