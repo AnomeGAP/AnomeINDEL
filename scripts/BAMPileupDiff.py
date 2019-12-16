@@ -76,10 +76,15 @@ def pileup_diff(ifn1, ifn2, ofn):
         if DEBUG:
             print("READ:%s, pre_chr=%s, idx=%d, missing2=%s" % (items, pre_chr, idx, missing2[idx]))
 
+        # Case 1: pre_chr = "chr1"
+        #         items       chr2  1   1234
+        #         missing2    chr1  9999   12345
+        #                     chr1 13333   14444
         while idx < cnt and missing2[idx][0] != items[0] and pre_chr == missing2[idx][0]:
+            idx += 1
             if DEBUG:
                 print("[1]idx++")
-            idx += 1
+                print("idx=%d, cnt=%d, items=%s, missing2[idx]=%s" % (idx, cnt, items, missing2[idx]))
 
         if pre_chr == "":
             pre_chr = items[0]
@@ -94,8 +99,12 @@ def pileup_diff(ifn1, ifn2, ofn):
             print("idx=%d, cnt=%d, items=%s, missing2[idx]=%s" %(idx, cnt, items, missing2[idx]))
         if idx >= cnt or missing2[idx][0] != items[0]:
             # all missings can be covered by ifd2
+            # Case 2: pre_chr = "chr22"
+            #         items       chr22  1      1234
+            #                     chr22  2345   3456
+            #         missing2    chr21  9999   12345
             if DEBUG:
-                print("[1]%s:%s-%s\t%s\n" % (items[0], items[1], items[2], items[3]))
+                print("[2]%s:%s-%s\t%s\n" % (items[0], items[1], items[2], items[3]))
             if OUTPUT_FORMAT == 0:
                 ofd.write("%s:%s-%s\t%s\n" % (items[0], items[1], items[2], items[3]))
             else:
@@ -103,17 +112,25 @@ def pileup_diff(ifn1, ifn2, ofn):
             num_regions += 1
             num_bps += int(items[2]) - int(items[1]) + 1
         else:
-            while idx < cnt and missing2[idx][0] != items[0]:
-                if DEBUG:
-                    print("[2]idx++")
-                idx += 1
+            # Case 3: pre_chr = "chr1"
+            #         items       chr1  1234   3456
+            #         missing2    chr1     1    123
+            #                     chr1   234    456
+            #                     chr1  1000   2345
             while idx < cnt and missing2[idx][0] == items[0] and int(missing2[idx][2]) < int(items[1]):
+                idx += 1
                 if DEBUG:
                     print("[3]idx++")
-                idx += 1
+                    print("idx=%d, cnt=%d, items=%s, missing2[idx]=%s" % (idx, cnt, items, missing2[idx]))
+
             if idx >= cnt:
+                # all missings can be covered by ifd2
+                # Case 4: pre_chr = "chr22"
+                #         items       chr22  1      1234
+                #                     chr22  2345   3456
+                #         missing2    chr21  9999   12345
                 if DEBUG:
-                    print("[2]%s:%s-%s\t%s" % (items[0], items[1], items[2], items[3]))
+                    print("[4]%s:%s-%s\t%s" % (items[0], items[1], items[2], items[3]))
                 if OUTPUT_FORMAT == 0:
                     ofd.write("%s:%s-%s\t%s\n" % (items[0], items[1], items[2], items[3]))
                 else:
@@ -121,8 +138,11 @@ def pileup_diff(ifn1, ifn2, ofn):
                 num_regions += 1
                 num_bps += int(items[2]) - int(items[1]) + 1
             elif int(missing2[idx][1]) > int(items[2]):
+                # Case 5: pre_chr = "chr22"
+                #         items       chr22  1      1234
+                #         missing2    chr22  9999   12345
                 if DEBUG:
-                    print("[3]%s:%s-%s\t%s\n" % (items[0], items[1], items[2], items[3]))
+                    print("[5]%s:%s-%s\t%s\n" % (items[0], items[1], items[2], items[3]))
                 if OUTPUT_FORMAT == 0:
                     ofd.write("%s:%s-%s\t%s\n" % (items[0], items[1], items[2], items[3]))
                 else:
@@ -130,9 +150,12 @@ def pileup_diff(ifn1, ifn2, ofn):
                 num_regions += 1
                 num_bps += int(items[2]) - int(items[1]) + 1
             elif int(missing2[idx][2]) >= int(items[2]):
+                # Case 6: pre_chr = "chr22"
+                #         items       chr22  1      1234
+                #         missing2    chr22  1234   12345
                 if int(missing2[idx][1]) > int(items[1]):
                     if DEBUG:
-                        print("[4]%s:%s-%d\t%s\n" % (items[0], items[1], int(missing2[idx][1])-1, int(missing2[idx][1]) - int(items[1])))
+                        print("[6]%s:%s-%d\t%s\n" % (items[0], items[1], int(missing2[idx][1])-1, int(missing2[idx][1]) - int(items[1])))
                     if OUTPUT_FORMAT == 0:
                         ofd.write("%s:%s-%d\t%s\n" % (items[0], items[1], int(missing2[idx][1])-1, int(missing2[idx][1]) - int(items[1])))
                     else:
@@ -140,7 +163,7 @@ def pileup_diff(ifn1, ifn2, ofn):
                     num_regions += 1
                     num_bps += int(missing2[idx][1]) - int(items[1])
             else:
-                start = int(items[1]) + 1
+                start = int(items[1])
                 while idx < cnt and int(missing2[idx][2]) <= int(items[2]) and missing2[idx][0] == items[0]:
                     if DEBUG:
                         print("start: %d\t%s" %(idx, missing2[idx]))

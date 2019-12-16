@@ -11,13 +11,13 @@
 #          copies by sale, rental, lease or lending are violations of federal copyright
 #          laws and state trade secret laws, punishable by civil and criminal penalties.
 #
-# @file    nirvana_parser.py
+# @file    nirvana_indel.py
 #
-# @brief   Parsing Nirvana output JSON file
+# @brief   Parsing Nirvana output JSON file and extract indel information
 #
 # @author  Chung-Tsai Su(chungtsai_su@atgenomix.com)
 #
-# @date    2019/04/02
+# @date    2019/06/19
 #
 # @version 1.0
 #
@@ -31,31 +31,6 @@ from pprint import pprint
 from collections import defaultdict
 
 # CONSTANT
-DAMAGE_LEVEL = {'stop_lost': 4,
-                'start_lost': 4,
-                'stop_gained': 4,
-                'frameshift_variant': 4,
-                'inframe_deletion': 3,
-                'inframe_insertion': 3,
-                'stop_retained_variant': 3,
-                'start_retained_variant': 3,
-                'incomplete_terminal_codon_variant': 3,
-                'mature_miRNA_variant': 3,
-                'splice_acceptor_variant': 3,
-                'splice_donor_variant': 3,
-                'coding_sequence_variant': 2,
-                'missense_variant': 2,
-                'splice_region_variant': 2,
-                'upstream_gene_variant': 1,
-                'downstream_gene_variant': 1,
-                'synonymous_variant': 1,
-                '5_prime_UTR_variant': 1,
-                '3_prime_UTR_variant': 1,
-                'intron_variant': 1,
-                'non_coding_transcript_variant': 1,
-                'non_coding_transcript_exon_variant': 1,
-                'NMD_transcript_variant': 1,
-                'transcript_ablation': 1}
 
 
 # Mutation Type
@@ -63,37 +38,56 @@ h_mutation = defaultdict(lambda: 0)
 
 
 def usage():
-    print("zcat <Nirvana JSON Gzip file> | nirvana_parser.py -f <COSMIC Cancer Gene Census> ")
+    print("zcat <Nirvana JSON Gzip file> | nirvana_indel.py -f <COSMIC Cancer Gene Census> -o <output file>")
     print("Argument:")
     print("\t-h: Usage")
     print("\t-f: COSMIC Cancer Gene Census")
+    print("\t-f: Output file")
     print("Usage:")
-    print("\tzcat ./KSTF_NIRVANA/KSTF_0601.json.gz | python ./nirvana_parser.py -f ./Census_all.tsv")
-    print("\tgzcat /Users/chungtsai_su/KSTF/KSTF_NIRVANA/KSTF_0601.json.gz | python ./nirvana_parser.py -f /Users/chungtsai_su/data/COSMIC/Census_all.tsv")
-    print("\tgzcat /Users/chungtsai_su/KSTF/KSTF_NIRVANA/KSTF_0616N_gatk.json.gz | python ./nirvana_parser.py -f /Users/chungtsai_su/data/COSMIC/Census_all.tsv > /Users/chungtsai_su/KSTF/KSTF_NIRVANA/gatk/KSTF_0616N")
+    print("\tzcat ./KSTF_NIRVANA/KSTF_0601.json.gz | python ./nirvana_indel.py -f ./Census_all.tsv -o ./KSTF_NIRVANA/KSTF_0601.indel")
+    print("\tgzcat /Users/chungtsai_su/KSTF/KSTF_NIRVANA/KSTF_0601.json.gz | python ./nirvana_indel.py -f /Users/chungtsai_su/data/COSMIC/Census_all.tsv -o /Users/chungtsai_su/KSTF/KSTF_NIRVANA/KSTF_0601.indel")
 
     return
 
 
 def check_tier(vars, gene_list):
-    (tier, level) = (3, 0)
+    is_indel = False
+    is_insertion = False
+    tier = 3
+    refAllele = ""
+    altAllele = ""
     gene_name = ""
-    consequence = ""
+
+    # print(json.dumps(vars, indent=4))
+
     for j in range(len(vars['variants'])):
         # print("%d, %s, %s, %s, %s" % (j, vars['variants'][j]['begin'], vars['variants'][j]['end'],
         #                                          vars['variants'][j]['refAllele'],
         #                                          vars['variants'][j]['altAllele']))
         # print(json.dumps(vars['variants'][j], indent=4))
+
         # 'cosmic' / 'gene'
         type = "N/A"
         var = vars['variants'][j]
+        if len(var['altAllele']) == len(var['refAllele']) and var['altAllele'] != "-" and var['refAllele'] != "-":
+            continue
+        elif len(var['altAllele']) > len(var['refAllele']) or var['refAllele'] == '-':
+            is_insertion = True
+        else:
+            is_insertion = False
+
+        refAllele = var['refAllele']
+        altAllele = var['altAllele']
+        is_indel = True
         if 'cosmic' in var:
             for k in range(len(var['cosmic'])):
                 if 'gene' in var['cosmic'][k]:
+                    # print("*** %s ***" % var['cosmic'][k]['gene'])
                     temp = gene_list[var['cosmic'][k]['gene']]
-                    if temp < tier:
+                    if temp <= tier:
                         tier = temp
                         gene_name = var['cosmic'][k]['gene']
+                        # print("tier=%d, genename = %s" % (tier, gene_name))
         # 'transcripts' / 'ensembl' / 'hgnc'
         if 'transcripts' in var:
             # print(json.dumps(var['transcripts'], indent=4))
@@ -102,30 +96,18 @@ def check_tier(vars, gene_list):
                     if 'hgnc' in var['transcripts']['ensembl'][k]:
                         # print("*** %s ***" % var['transcripts']['ensembl'][k]['hgnc'])
                         temp = gene_list[var['transcripts']['ensembl'][k]['hgnc']]
-                        if temp < tier:
+                        if temp <= tier:
                             tier = temp
                             gene_name = var['transcripts']['ensembl'][k]['hgnc']
-                        # print("### %s" % var['transcripts']['ensembl'][k]['consequence'])
-                        for l in range(len(var['transcripts']['ensembl'][k]['consequence'])):
-                            # print("%d ### %s" % (l, var['transcripts']['ensembl'][k]['consequence'][l]))
-                            if level < DAMAGE_LEVEL[var['transcripts']['ensembl'][k]['consequence'][l]]:
-                                level = DAMAGE_LEVEL[var['transcripts']['ensembl'][k]['consequence'][l]]
-                                consequence = var['transcripts']['ensembl'][k]['consequence'][l]
-                                # h_level[var['transcripts']['ensembl'][k]['consequence'][l]] += 1
+                            # print("tier=%d, genename = %s" % (tier, gene_name))
 
-    if tier < 3 and level >= 3:
-        print("%s:%s-%s\t%s\t%s\t%s\t%s" % (
-            vars['variants'][j]['chromosome'], vars['variants'][j]['begin'], vars['variants'][j]['end'],
-            vars['variants'][j]['refAllele'], vars['variants'][j]['altAllele'], gene_name, consequence))
-
-    return tier, level
+    return is_indel, is_insertion, tier, refAllele, altAllele, gene_name
 
 
-def nirvana_parser(ifile):
+def nirvana_indel(ifile, ofile):
     h_gene = defaultdict(lambda: 3)
     tier_count = [0] * (3 + 1)
-    multiallele_count = [0] * (3 + 1)
-    level_count = [0] * (4 + 1)
+    num_insertion = num_deletion = 0
 
     ifd = open(ifile, "r")
     # https://cancer.sanger.ac.uk/cosmic/census?tier=all
@@ -141,34 +123,36 @@ def nirvana_parser(ifile):
 
     data = json.load(sys.stdin)
     # pprint(data)
+    ofn = open(ofile, "w")
     pos = data['positions']
     # pprint('There are %d variants' % len(pos))
     for i in range(len(pos)):
         # print("i=%d" % i)
         # print(json.dumps(pos[i], indent=4))
-        (tier, level) = check_tier(pos[i], h_gene)
-        tier_count[tier] += 1
-        if len(pos[i]['variants']) > 1:
-            multiallele_count[tier] += 1
-        level_count[level] += 1
-
-    # print("Total\tTier1\tTier2\tNon-Oncogenes\tTier1[MultiAllele]\tTier2[MultiAllele]\tNon-Oncogenes[MultiAllele]\tLevel0\tLevel1\tLevel2\tLevel3\tLevel4")
-    print("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d" %
-          (len(pos), tier_count[1], tier_count[2], tier_count[3],
-           multiallele_count[1], multiallele_count[2], multiallele_count[3],
-           level_count[0], level_count[1], level_count[2], level_count[3], level_count[4]))
-
-    # for k in h_level.keys():
-    #     print("%s\t%d" % (k, h_level[k]))
-
+        len_ref = pos[i]["refAllele"]
+        (is_indel, is_insertion, tier, refAllele, altAllele, gene_name) = check_tier(pos[i], h_gene)
+        if is_indel:
+            # print(gene_name)
+            # print(json.dumps(pos[i], indent=4))
+            tier_count[tier] += 1
+            if is_insertion:
+                num_insertion += 1
+            else:
+                num_deletion += 1
+            # print("%s\t%s\t%s\t%s\t%s\t%d\n" % ( pos[i]["chromosome"], pos[i]["position"], refAllele, altAllele, gene_name, tier))
+            ofn.write("%s\t%s\t%s\t%s\t%s\t%d\n" % ( pos[i]["chromosome"], pos[i]["position"], refAllele, altAllele, gene_name, tier))
+    ofn.close()
+    # print("Total\tIndel\tInsertion\tDeletion\tTeir 1\tTeir 2\n")
+    print("%d\t%d\t%d\t%d\t%d\t%d\n" % (len(pos), tier_count[3]+tier_count[1]+tier_count[2], num_insertion, num_deletion, tier_count[1], tier_count[2]))
     return
 
 
 def main(argv):
     ifile = ""
+    ofile = ""
 
     try:
-        opts, args = getopt.getopt(argv, "hf:")
+        opts, args = getopt.getopt(argv, "hf:o:")
     except getopt.GetoptError:
         usage()
         sys.exit(1)
@@ -179,8 +163,10 @@ def main(argv):
             sys.exit()
         elif opt == "-f":
             ifile = arg
+        elif opt == "-o":
+            ofile = arg
 
-    nirvana_parser(ifile)
+    nirvana_indel(ifile, ofile)
 
     return
 

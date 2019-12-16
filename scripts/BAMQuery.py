@@ -33,7 +33,7 @@ from collections import defaultdict
 
 # CONST
 TYPE_SEQ = "SEQ"
-TYPE_CIGAR = "CIGAR"
+TYPE_NAME = "NAME"
 
 # Default Parameter
 READ1_LEN = 128
@@ -48,18 +48,23 @@ def usage():
     print("Argument:")
     print("\t-h: Usage")
     print("\t-i: Input BAM file")
-    print("\t-t: [%s|%s] (Default: %s)" % (TYPE_SEQ, TYPE_CIGAR, TYPE_SEQ))
+    print("\t-t: [%s|%s] (Default: %s)" % (TYPE_SEQ, TYPE_NAME, TYPE_SEQ))
     print("\t-q: keyword")
     print("\t-o: Output SAM file which matches the query")
     print("Usage:")
     print("\tpython ./BAQuery.py -i ./NA12878.sorted.bam "
           "-t %s -q AAGAGCACACGTCTGAACTCCAGTCACTGCTGTAAATCTCGTATGCCGTCTTCTGCTTGAAAAA -o ./NA12878.query.sorted.sam "
           "> output.log" % TYPE_SEQ)
+    print("\tpython3 ./BAMQuery.py -i ../data/NA12878/result-1.0.2-qual-fix-4.primary.sorted.bam -t SEQ "
+          " -q TTGCTATTGTGAATAATGCCGCAATAAACATACGTGTGCATGTGTCTTTATAGCAGCATGATTTATAGTCCTTTGGGTA"
+          " -o test.sam > TTGCTATTGTGAATAATGCCGCAATAAACATACGTGTGCATGTGTCTTTATAGCAGCATGATTTATAGTCCTTTGGGTA.log")
+    print("\tpython3 ./BAMQuery.py -i ../data/NA12878/result-1.0.2-qual-fix-4.primary.sorted.bam -t NAME "
+          " -q CONTIG-248545012-248545012 -o test.sam > CONTIG-248545012-248545012.log")
 
     return
 
 
-def analyzer(ifn, ofn, query):
+def analyzer(ifn, ofn, type_setting, query):
     samfile = pysam.AlignmentFile(ifn, "rb")
     output = pysam.AlignmentFile(ofn, "wh", template=samfile)
     cnt = 0
@@ -69,8 +74,9 @@ def analyzer(ifn, ofn, query):
     print("nocoordinate=%d" % samfile.nocoordinate)
     print("")
 
-    for read in samfile.fetch():
-        if str(read.query_sequence).find(query) == 0:
+    for read in samfile.fetch(contig="*"):
+        if (type_setting == TYPE_SEQ and str(read.query_sequence).find(query) >= 0) or \
+           (type_setting == TYPE_NAME and str(read.query_name).find(query) >= 0):
             output.write(read)
             print("%s\t%d\t%d\t%d\t%s\t%s\t%s" %(read.reference_name, read.reference_start, read.is_read1, read.is_proper_pair,
                                              read.cigarstring, read.query_name, read.query_sequence))
@@ -101,7 +107,7 @@ def main(argv):
         elif opt == "-i":
             ifile = arg
         elif opt == "-t":
-            type = arg
+            type_setting = arg
         elif opt == "-q":
             query = arg
         elif opt == "-o":
@@ -120,13 +126,16 @@ def main(argv):
         print("Error: '-q' is required")
         usage()
         sys.exit(4)
+    elif type_setting != TYPE_SEQ and type_setting != TYPE_NAME:
+        print("Error: '-t' is required [%s|%s]" % (TYPE_SEQ, TYPE_NAME))
+        usage()
+        sys.exit(5)
 
     if ofile == "":
         ofile = "%s.unmapped.sam" % ifile
 
     # Main Function
-    if type_setting == TYPE_SEQ:
-        analyzer(ifile, ofile, query)
+    analyzer(ifile, ofile, type_setting, query)
 
     return
 

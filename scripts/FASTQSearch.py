@@ -53,21 +53,21 @@ def search(t, keyword, ofn):
     for line in sys.stdin:
         if idx % 4 == 0:
             data = line
-            if t == TYPE_NAME and keyword == line.strip():
+            if t == TYPE_NAME and keyword in line.strip():
                 enabled = True
         elif idx % 4 == 1:
             data += line
-            if t == TYPE_SEQ and keyword == line.strip():
+            if t == TYPE_SEQ and keyword in line.strip():
                 enabled = True
         elif idx % 4 == 3:
-            if t == TYPE_QUALITY and keyword == line.strip():
+            if t == TYPE_QUALITY and keyword in line.strip():
                 enabled = True
             if enabled:
                 ofd.write("%s%s" % (data, line))
-                break
+                enabled = False
         idx += 1
 
-    ofd.cloes()
+    ofd.close()
     return
 
 

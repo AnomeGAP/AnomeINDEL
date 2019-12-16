@@ -47,6 +47,8 @@ def Usage():
     print("\t./VCFQualityFilter.py -i TSC181K_11132015_bwamem.del.vcf -c 10 -q 40")
 
     return
+
+
 def VCFQualityFilter(ifn, min_cov, min_qual):
 
     ifd = open(ifn, "r")

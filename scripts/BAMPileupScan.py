@@ -72,14 +72,15 @@ def pileupScan(ifn, ofn):
         # total_mapped += mapped
         total += chrSize[i]
         mapped = 0
-        prev = -1
+        prev = 0
         segment = 0
-        for pileupcolumn in samfile.pileup(chrID[i], 0, chrSize[i]-1):
-            # print("%s\t%s" % (pileupcolumn.pos, pileupcolumn.n))
+        for pileupcolumn in samfile.pileup(chrID[i], 0, chrSize[i]-1, stepper="nofilter"):
+            # print("%d\t%d\t%d" % (prev, pileupcolumn.pos, pileupcolumn.n))
             if prev+1 == pileupcolumn.pos:
                 mapped += 1
             else:
-                ofd.write("%s\t%s\t%s\t%d\n" % (chrID[i], prev+1, pileupcolumn.pos, pileupcolumn.pos-prev))
+                # print("%s\t%s\t%s\t%d" % (chrID[i], prev+1, pileupcolumn.pos, pileupcolumn.pos-prev))
+                ofd.write("%s\t%s\t%s\t%d\n" % (chrID[i], prev+1+1, pileupcolumn.pos+1, pileupcolumn.pos-prev))
                 segment += 1
             prev = pileupcolumn.pos
         print("%s\t%d\t%d\t%2.1f%%\t%d" % (chrID[i], mapped, chrSize[i], (chrSize[i] - mapped)*100/chrSize[i], segment))

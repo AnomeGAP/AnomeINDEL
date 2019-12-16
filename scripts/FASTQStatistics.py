@@ -28,16 +28,20 @@ import sys
 import getopt
 
 # CONSTANT
-ORI_LENGTH = 151
-UNIT = 100
-NUM_ELEMENT = 10
-# UNIT = 1000
-# NUM_ELEMENT = 50
+#ORI_LENGTH = 151
+#UNIT = 100
+#NUM_ELEMENT = 10
+#UNIT = 1000
+#NUM_ELEMENT = 50
+ORI_LENGTH = 24
+UNIT = 1
+NUM_ELEMENT = 400
+
 MAX_LENGTH = UNIT * NUM_ELEMENT
 
 
 def usage():
-    print("zcat <Input FASTQ.gz> | FASTQStatistics.py > length_distribution.tsv")
+    print("gzcat <Input FASTQ.gz> | FASTQStatistics.py > length_distribution.tsv")
     print("Argument:")
     print("\t-h: Usage")
     print("Usage:")
@@ -75,7 +79,7 @@ def analyzer():
     print("#reads\t%d" % cnt)
     print("#bps\t%ld" % total_bp)
     print("average_legnth\t%f" % (float(total_bp/cnt)))
-    print("Max length\t%d" % max_length)
+    print("max_length\t%d" % max_length)
     print("#singletons(<=%d)\t%d" % (ORI_LENGTH,total_ori))
 
     for i in range(NUM_ELEMENT+1):

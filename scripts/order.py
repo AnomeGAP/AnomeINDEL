@@ -90,7 +90,7 @@ def main(argv):
             sys.exit()
         elif opt in "-i":
             infile1 = arg
-    if not infile1 :
+    if not infile1:
         Usage()
         sys.exit(2)
     elif not os.path.isfile(infile1):
