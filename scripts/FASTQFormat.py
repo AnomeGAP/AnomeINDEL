@@ -52,12 +52,14 @@ def analyzer(id, ofn):
     for line in sys.stdin:
         if i % 4 == 0:
             idx += 1
-            ofd.write("@ConnectedRead%d:%d\n" % (idx, id))
+            ofd.write("@CC%d:%d\n" % (idx, id))
         elif i % 4 == 2:
             ofd.write("+\n")
         elif i % 4 == 3 and str(line).startswith("@"):
+            # temp = "F" * len(line.strip())
+            # ofd.write("%s\n" % temp)
             temp = "F" * len(line.strip())
-            ofd.write("%s\n" % temp)
+            ofd.write("A%s\n" % line.strip()[1:])
         else:
             ofd.write(line)
         i += 1
