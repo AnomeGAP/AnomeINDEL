@@ -20,6 +20,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+# source from https://mathgen.stats.ox.ac.uk/impute/scripts/vcf2impute_legend_haps
+
 use strict;
 use warnings;
 
@@ -487,7 +489,9 @@ sub PrintLegendHapsFiles($$)
       }
     }
     print LEG "$var_id $line_info[$pos_tag_idx] $ref_allele $alt_allele".$legend_str."\n";
-    print HAP "$hap_alleles_str\n";
+    #print HAP "$hap_alleles_str\n";
+    ##
+    print HAP "$chrom $var_id $line_info[$pos_tag_idx] $ref_allele $alt_allele".$legend_str." $hap_alleles_str\n";
   }
 
   # print number of SNPs removed by FILTER tag
