@@ -196,7 +196,8 @@ def ins_caller(ifn, min_length, min_offset, min_mapq, ofn):
         if len(c) == 2 or len(c) == 5 or c == "X" or c == "chrX" or c == "Y" or c == "chrY":
             s = "%s:%10d" % (c, int(p))
         if s not in h_output and "_" not in c:
-            h_output[s] = "%s\t%s\tINS\t.\t.\t.\tPASS\tSVTYPE=INS;SVLEN=%d;READS=%d;CC=CompletelyConnected\n" % (c, p , h_lens[k], h_candidates[k]+1)
+            #h_output[s] = "%s\t%s\tINS\t.\t.\t.\tPASS\tSVTYPE=INS;SVLEN=%d;READS=%d;CC=CompletelyConnected\n" % (c, p , h_lens[k], h_candidates[k]+1)
+            h_output[s] = "%s\t%s\t.\tA\t<INS>\t.\tPASS\tSVTYPE=INS;SVLEN=%d;READS=%d;CC=CompletelyConnected\n" % (c, p , h_lens[k], h_candidates[k]+1)
             num_cc_ins += 1
 
     pre_chr = ""
@@ -223,8 +224,9 @@ def ins_caller(ifn, min_length, min_offset, min_mapq, ofn):
                     if len(c) == 2 or len(c) == 5 or c == "X" or c == "chrX" or c == "Y" or c == "chrY":
                         s = "%s:%10d" % (c, int(p))
                     if s not in h_output and "_" not in c:
-                        h_output[s] = "%s\t%s\tINS\t.\t.\t.\tPASS\tSVTYPE=INS;SVLEN=%d;READS=%d;CC=PartiallyConnected\n" \
-                                      % (c, p, max_l, h_candidates[pos] + 1)
+                        #h_output[s] = "%s\t%s\tINS\t.\t.\t.\tPASS\tSVTYPE=INS;SVLEN=%d;READS=%d;CC=PartiallyConnected\n" \
+                        h_output[s] = "%s\t%s\t.\tA\t<INS>\t.\tPASS\tSVTYPE=INS;SVLEN=%d;READS=%d;CC=PartiallyConnected\n" \
+                                         % (c, p, max_l, h_candidates[pos] + 1)
                         num_pc_ins += 1
 
                     h_potential[pos] += 1
@@ -246,8 +248,9 @@ def ins_caller(ifn, min_length, min_offset, min_mapq, ofn):
             if len(cur_chr) == 2 or len(cur_chr) == 5 or cur_chr == "X" or cur_chr == "chrX" or cur_chr == "Y" or cur_chr == "chrY":
                 s = "%s:%10d" % (cur_chr, cur_pos)
             if s not in h_output and "_" not in cur_chr:
-                h_output[s] = "%s\t%s\tINS\t.\t.\t.\tPASS\tSVTYPE=INS;SVLEN=%d;READS=%d;CC=PartiallyConnected\n" \
-                          % (cur_chr, cur_pos, max_l, 2)
+                #h_output[s] = "%s\t%s\tINS\t.\t.\t.\tPASS\tSVTYPE=INS;SVLEN=%d;READS=%d;CC=PartiallyConnected\n" \
+                h_output[s] = "%s\t%s\t.\tA\t<INS>\t.\tPASS\tSVTYPE=INS;SVLEN=%d;READS=%d;CC=PartiallyConnected\n" \
+                              % (cur_chr, cur_pos, max_l, 2)
                 num_pc_ins += 1
 
             h_potential[pos] += 1
@@ -267,8 +270,9 @@ def ins_caller(ifn, min_length, min_offset, min_mapq, ofn):
             if len(cur_chr) == 2 or len(cur_chr) == 5 or cur_chr == "X" or cur_chr == "chrX" or cur_chr == "Y" or cur_chr == "chrY":
                 s = "%s:%10d" % (cur_chr, pre_pos)
             if s not in h_output and "_" not in cur_chr:
-                h_output[s] = "%s\t%s\tINS\t.\t.\t.\tPASS\tSVTYPE=INS;SVLEN=%d;READS=%d;CC=PartiallyConnected\n" \
-                          % (cur_chr, pre_pos, max_l, 2)
+                # h_output[s] = "%s\t%s\tINS\t.\t.\t.\tPASS\tSVTYPE=INS;SVLEN=%d;READS=%d;CC=PartiallyConnected\n" \
+                h_output[s] = "%s\t%s\t.\tA\t<INS>\t.\tPASS\tSVTYPE=INS;SVLEN=%d;READS=%d;CC=PartiallyConnected\n" \
+                              % (cur_chr, pre_pos, max_l, 2)
                 num_pc_ins += 1
 
             h_potential[pos1] += 1
@@ -286,12 +290,14 @@ def ins_caller(ifn, min_length, min_offset, min_mapq, ofn):
                 if s not in h_output and "_" not in pre_chr:
                     if pre_orientation == 1:
                         # output.write("%s:%d\t%d\tLeft-Clipping\tPotential Detectable\n" % (pre_chr, pre_pos, pre_l))
-                        h_output[s] = "%s\t%s\tINS\t.\t.\t.\tPASS\tSVTYPE=INS;SVLEN=%d;READS=%d;CC=PotentialDetectable(LeftClipping)\n" \
-                            % (pre_chr, pre_pos, pre_l, 1)
+                        # h_output[s] = "%s\t%s\tINS\t.\t.\t.\tPASS\tSVTYPE=INS;SVLEN=%d;READS=%d;CC=PotentialDetectable(LeftClipping)\n" \
+                        h_output[s] = "%s\t%s\t.\tA\t<INS>\t.\tPASS\tSVTYPE=INS;SVLEN=%d;READS=%d;CC=PotentialDetectable(LeftClipping)\n" \
+                                 % (pre_chr, pre_pos, pre_l, 1)
                     elif pre_orientation == 2:
                         # output.write("%s:%d\t%d\tRight-Clipping\tPotential Detectable\n" % (pre_chr, pre_pos, pre_l))
-                        h_output[s] = "%s\t%s\tINS\t.\t.\t.\tPASS\tSVTYPE=INS;SVLEN=%d;READS=%d;CC=PotentialDetectable(LeftClipping)\n" \
-                            % (pre_chr, pre_pos, pre_l, 1)
+                        # h_output[s] = "%s\t%s\tINS\t.\t.\t.\tPASS\tSVTYPE=INS;SVLEN=%d;READS=%d;CC=PotentialDetectable(LeftClipping)\n" \
+                        h_output[s] = "%s\t%s\t.\tA\t<INS>\t.\tPASS\tSVTYPE=INS;SVLEN=%d;READS=%d;CC=PotentialDetectable(LeftClipping)\n" \
+                                 % (pre_chr, pre_pos, pre_l, 1)
                     num_pd_ins += 1
 
                 h_potential[pos] += 1
