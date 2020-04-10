@@ -257,9 +257,13 @@ sub PrintLegendHapsFiles($$)
       # if we reach this point, we must have successfully found the FORMAT tag;
       # all subsequent entries should be sample IDs
       open(SAMP, "> $samp_file") || die $!;
+      # added by A-Tsai
+      print SAMP "ID_1 ID_2 missing\n";
+      print SAMP "0 0 0\n";
       for my $j (($format_tag_idx+1)..$#line_info) {
-	push @sample_list, $line_info[$j];
-	print SAMP "$line_info[$j]\n" if ($keep_group eq "" || $keep_group eq $sample_to_ancestry_group{$line_info[$j]});
+	    push @sample_list, $line_info[$j];
+	    #print SAMP "$line_info[$j]\n" if ($keep_group eq "" || $keep_group eq $sample_to_ancestry_group{$line_info[$j]});
+	    print SAMP "$line_info[$j] $line_info[$j] 0\n" if ($keep_group eq "" || $keep_group eq $sample_to_ancestry_group{$line_info[$j]});
       }
       close(SAMP);
 

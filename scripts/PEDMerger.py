@@ -33,13 +33,12 @@ import re
 from collections import defaultdict
 
 # CONST Parameter
-DIVISOR = 100
-# MAX_CIGAR_STRING = 15
+NUM_HEADER = 6
 
 # Default Parameter
-MIN_LENGTH = 50
-MIN_OFFSET = 400
-MIN_MAPQ = 60
+
+# example for data format
+#TV2A_20190101A_TV2A_20190101A   TV2A_20190101A_TV2A_20190101A   0       0       -9      -9      1 1     1 1     1 1...
 
 
 def usage():
@@ -50,28 +49,31 @@ def usage():
     print("\t-i: Input PED folder")
     print("\t-o: Output PED file")
     print("Usage:")
-    print("\tpython3 ./PEDMeger.py -i ~/input_ped/ -o ~/output/merged.ped")
+    print("\tpython3 ./PEDMerger.py -i ~/input_ped/ -o ~/output/merged.ped")
+    print("\tpython3 ./PEDMerger.py -i /mnt/volume_1TB/academia-sinica/test -o /mnt/volume_1TB/academia-sinica/output/merged.ped")
 
     return
 
+$(printf "Y%02d_Y01.BALB_cJ.vcf.gz" ${i})
 
 def merger(ifolder, ofn):
     fd_list = []
     fn_list = []
+    print("FileList:")
     for filename in sorted(glob.glob(os.path.join(ifolder, '*.ped'))):
-        print("%s" % filename)
+        print("\t%s" % filename)
         fn_list.append(filename)
         fd_list.append(open(filename))
 
     ofd = open(ofn, "w")
     for line in fd_list[0]:
         buf = line.strip()
-        print("buf=[%s]" % buf)
+        # print("buf=[%s]" % buf)
         for i in range(1, len(fd_list)):
             items = fd_list[i].readline().strip().split("\t")
-            print("items[0]=[%s]" % items[0])
+            # print("items[0]=[%s]" % items[0])
             if buf.startswith(items[0]):
-                buf = buf + "\t" + "\t".join(items[6:])
+                buf = buf + "\t" + "\t".join(items[NUM_HEADER:])
             else:
                 print("ERROR: %s in %s is not expected." % (items[0], fn_list[i]))
                 break
