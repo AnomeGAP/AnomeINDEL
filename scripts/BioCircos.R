@@ -1,5 +1,5 @@
-# Title     : TODO
-# Objective : TODO
+# Title     : Circular Manhanttan plot for WES
+# Objective : show randomness of somatic variants on 4T1 mouse
 # Created by: chungtsai_su
 # Created on: 2020/5/12
 #https://cran.r-project.org/web/packages/BioCircos/vignettes/BioCircos.html
