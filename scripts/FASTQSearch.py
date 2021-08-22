@@ -40,6 +40,7 @@ def usage():
     print("\t-o: <Output file>")
     print("Usage:")
     print("\ttime zcat /seqslab/NA12878-novaseq/NA12878-novqseq_r1.fastq.gz | python /seqslab/atsai/script/FASTQSearch.py -t SEQ -k AAAAAAAAAAAAAAAAAAAAAATTTTCAAACGATTTCAGTTCCCAACAGGAGTACTATTAGATAGGGAATGAGTTAAATTTAATTTCTGTTTTCCTCCCAATAAAAAGAAGTGGATTGCAAAATGTGGTTTATGTACTTGTAATAA -o /seqslab/atsai/data/NA12878/AAAAAAAAAAAAAAAAAAAAAATTTTCAAACGATTTCAGTTCCCAACAGGAGTACTATTAGATAGGGAATGAGTTAAATTTAATTTCTGTTTTCCTCCCAATAAAAAGAAGTGGATTGCAAAATGTGGTTTATGTACTTGTAATAA.log")
+    print("\ttime zcat ./TMB500-local/AANB01_31_IDX709505_R1.fastq-alignmentRun-Clean_fastq.fastq.gz | python ./FASTQSearch.py -t NAME -k @NB552005:31:HKG7JBGXC:1:21206:3857:20383 -o 20383-1.fq")
 
     return
 
@@ -63,7 +64,7 @@ def search(t, keyword, ofn):
             if t == TYPE_QUALITY and keyword in line.strip():
                 enabled = True
             if enabled:
-                ofd.write("%s%s" % (data, line))
+                ofd.write("+\n%s%s" % (data, line))
                 enabled = False
         idx += 1
 

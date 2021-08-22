@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
 
-## Example command on cgbs
-## bash ./ScanFolder.sh ../data/WGBS
 
-END=10
+LIST=('A' 'B' 'C' 'D' 'E' 'F' 'G' 'H' 'I' 'J')
 
 ptn_r1="*_R1*"
 ptn_r2="*_R2*"
 
-for i in $(seq 1 ${END});
+for i in $(seq 0 ${#LIST[@]});
 do
     pattern="$(printf "*NY%02d*" ${i})"
     fastq_r1="$(printf "$1/NY%02d_R1.fq.gz" ${i})"

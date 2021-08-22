@@ -1,7 +1,3 @@
-# Title     : Circular Manhanttan plot for WES
-# Objective : show randomness of somatic variants on 4T1 mouse
-# Created by: chungtsai_su
-# Created on: 2020/5/12
 #https://cran.r-project.org/web/packages/BioCircos/vignettes/BioCircos.html
 library(BioCircos)
 
@@ -86,9 +82,9 @@ tracklist = tracklist + BioCircosSNPTrack('CDL2-Tumor', CDL2_TUMOR_chromsomes, C
 tracklist = tracklist + BioCircosBackgroundTrack("CDR1-Lung-BGTrack",minRadius = 0.9, maxRadius = 1.0,
                                                  borderColors = "#AAAAAA", borderSize = 1.6, fillColors = "#D3FFC6")
 tracklist = tracklist + BioCircosBackgroundTrack("ABL1-Lung-BGTrack",minRadius = 0.8, maxRadius = 0.9,
-                                                 borderColors = "#AAAAAA", borderSize = 1.6, fillColors = "#B3EFA6")
+                                                 borderColors = "#AAAAAA", borderSize = 1.6, fillColors = "#C3FFB6")
 tracklist = tracklist + BioCircosBackgroundTrack("CDL1-Lung-BGTrack",minRadius = 0.7, maxRadius = 0.8,
-                                                 borderColors = "#AAAAAA", borderSize = 1.6, fillColors = "#B3EFA6")
+                                                 borderColors = "#AAAAAA", borderSize = 1.6, fillColors = "#B3FFA6")
 tracklist = tracklist + BioCircosBackgroundTrack("ABR1-CTC-BGTrack",minRadius = 0.6, maxRadius = 0.7,
                                                  borderColors = "#AAAAAA", borderSize = 1.6, fillColors = "#E3D6FF")
 tracklist = tracklist + BioCircosBackgroundTrack("ABL1-CTC-BGTrack",minRadius = 0.5, maxRadius = 0.6,
@@ -105,5 +101,4 @@ tracklist = tracklist + BioCircosBackgroundTrack("CDL2-Tumor-BGTrack",minRadius 
 BioCircos(genome = mm10Genome, tracklist, genomeFillColor = "PuOr",
           chrPad = 0.05, displayGenomeBorder = TRUE, yChr =  FALSE,
           genomeTicksDisplay = FALSE,  genomeTicksTextSize = 10, genomeTicksScale = 1e+7, genomeLabelTextSize = 18, genomeLabelDy = 0)
-
 
