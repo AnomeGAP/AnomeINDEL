@@ -287,11 +287,14 @@ def process(ifn, afn):
                                                                  h_var[k].is_missense, h_var[k].is_synonymous,
                                                                  h_var[k].num_transcripts, h_var[k].impact_level))
     logging.debug("%d\t%d" % (num_qualified, num_total))
-    print(" 1:%d 2:%d 3:%d 4:%d 5:%d 6:%d 7:%d 8:%d 9:%d 10:%d 11:%d 12:%d 13:%d"
-          " 14:%d 15:%d 16:%d 17:%d 18:%d 19:%d 20:%d 21:%d 22:%d 23:%d 24:%d 25:%d 26:%d" %
-          (num_total, num_qualified, all_highimpact, all_moderateimpact, all_lowimpact, all_snp, all_insertion,
-           all_deletion, all_indel, all_sv, all_frameshift, all_inframe, all_missense, all_synonymous,
-           num_highimpact, num_moderateimpact, num_lowimpact, num_snp, num_insertion, num_deletion, num_indel,
+    # print(" 1:%d 2:%d 3:%d 4:%d 5:%d 6:%d 7:%d 8:%d 9:%d 10:%d 11:%d 12:%d 13:%d"
+    #       " 14:%d 15:%d 16:%d 17:%d 18:%d 19:%d 20:%d 21:%d 22:%d 23:%d 24:%d 25:%d 26:%d" %
+    #       (num_total, num_qualified, all_highimpact, all_moderateimpact, all_lowimpact, all_snp, all_insertion,
+    #        all_deletion, all_indel, all_sv, all_frameshift, all_inframe, all_missense, all_synonymous,
+    #        num_highimpact, num_moderateimpact, num_lowimpact, num_snp, num_insertion, num_deletion, num_indel,
+    #        num_sv, num_frameshift, num_inframe, num_missense, num_synonymous))
+    print(" 1:%d 2:%d 3:%d 4:%d 5:%d 6:%d 7:%d 8:%d 9:%d 10:%d 11:%d 12:%d 13:%d" %
+          (num_qualified, num_highimpact, num_moderateimpact, num_lowimpact, num_snp, num_insertion, num_deletion, num_indel,
            num_sv, num_frameshift, num_inframe, num_missense, num_synonymous))
 
 
