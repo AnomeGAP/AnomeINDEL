@@ -27,97 +27,137 @@
 import sys
 import getopt
 import os
-import elementpath
-import xml.etree.ElementTree as ET
 from collections import defaultdict
-import untangle
+import json
+import logging
+
 ## refer to https://www.hellocodeclub.com/how-to-convert-xml-to-json-in-python-ultimate-guide/
 import xmltodict
-import json
 
 # CONSTANT
-VCF_HEADER = ""
+VCF_HEADER = '''##fileformat=VCFv4.1
+##FORMAT=<ID=AF,Number=A,Type=Float,Description="Allele frequency based on Flow Evaluator observation counts">
+##FORMAT=<ID=AO,Number=A,Type=Integer,Description="Alternate allele observation count">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##INFO=<ID=LEN,Number=A,Type=Integer,Description="allele length">
+##INFO=<ID=TYPE,Number=A,Type=String,Description="The type of allele, either snp, mnp, ins, del, or complex.">
+##contig=<ID=chr1,length=249250621,assembly=hg19>
+##contig=<ID=chr2,length=243199373,assembly=hg19>
+##contig=<ID=chr3,length=198022430,assembly=hg19>
+##contig=<ID=chr4,length=191154276,assembly=hg19>
+##contig=<ID=chr5,length=180915260,assembly=hg19>
+##contig=<ID=chr6,length=171115067,assembly=hg19>
+##contig=<ID=chr7,length=159138663,assembly=hg19>
+##contig=<ID=chr8,length=146364022,assembly=hg19>
+##contig=<ID=chr9,length=141213431,assembly=hg19>
+##contig=<ID=chr10,length=135534747,assembly=hg19>
+##contig=<ID=chr11,length=135006516,assembly=hg19>
+##contig=<ID=chr12,length=133851895,assembly=hg19>
+##contig=<ID=chr13,length=115169878,assembly=hg19>
+##contig=<ID=chr14,length=107349540,assembly=hg19>
+##contig=<ID=chr15,length=102531392,assembly=hg19>
+##contig=<ID=chr16,length=90354753,assembly=hg19>
+##contig=<ID=chr17,length=81195210,assembly=hg19>
+##contig=<ID=chr18,length=78077248,assembly=hg19>
+##contig=<ID=chr19,length=59128983,assembly=hg19>
+##contig=<ID=chr20,length=63025520,assembly=hg19>
+##contig=<ID=chr21,length=48129895,assembly=hg19>
+##contig=<ID=chr22,length=51304566,assembly=hg19>
+##contig=<ID=chrX,length=155270560,assembly=hg19>
+##contig=<ID=chrY,length=59373566,assembly=hg19>
+##contig=<ID=chrM,length=16569,assembly=hg19>
+##reference=hg19
+##source="F1CDx to VCF by ATGENOMIX v1.0"
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	%s
+'''
+QUAL_DEFAULT = 100
+FILTER_DEFAULT = "PASS"
+TYPE_SNP = "snp"
+
+
+class SNP:
+    """
+    SNP from F1CDx
+    """
+    def __init__(self, object):
+        (chrom, pos) = object['@position'].split(":")
+        s = object['@cds-effect'].find(">")
+        if s <= 0:
+            logging.warning("Can't find '>' in %s [%s]" % (object['@position'], object['@cds-effect']))
+            return
+        ref = object['@cds-effect'][s-1]
+        alt = object['@cds-effect'][s+1]
+
+        self.chrom = chrom
+        self.pos = pos
+        self.ref = ref
+        self.alt = alt
+        self.id = "%s_%s_%s>%s" % (self.chrom, self.pos, self.ref, self.alt)
+        self.qual = QUAL_DEFAULT
+        self.filter = FILTER_DEFAULT
+        self.len = 1
+        self.type = TYPE_SNP
+        self.info = "LEN=%d;TYPE=%s" % (self.len, self.type)
+        self.gt = "0/1"
+        self.af = object['@allele-fraction']
+        self.dp = object['@depth']
+        self.ao = int(float(self.dp)*float(self.af))
+        self.format = "GT:AF:AO:DP\t%s:%s:%s:%s" % (self.gt, self.af, self.ao, self.dp)
+
+    def dump_vcf(self):
+        result = "%s\t%s\t%s\t%s\t%s\t%d\t%s\t%s\t%s" % (self.chrom, self.pos, self.id, self.ref, self.alt, self.qual,
+                                                         self.filter, self.info, self.format)
+        return result
+
 
 def usage():
-    print("F1XML2VCF.py -i <Input XML file >")
+    print("F1XML2VCF.py -i <Input XML file> -o <Output VCF file>")
     print("Argument:")
     print("\t-h: Usage")
     print("\t-i: input file (.xml)")
+    print("\t-o: output file (.vcf)")
     print("Usage:")
-    print("\tpython ./F1XML2VCF.py -i ~/data/VGH-NGS/data/FoundationOne/S110-99395_\(PF21001\)_deidentified.xml ")
+    print("\tpython ./F1XML2VCF.py -i ~/data/VGH-NGS/data/FoundationOne/S110-99395_\(PF21001\)_deidentified.xml "
+          "-o ~/data/VGH-NGS/data/FoundationOne/S110-99395_\(PF21001\)_deidentified.vcf ")
 
     return
 
 
-def xml2(ifile):
+def xml2vcf(ifile, ofile):
+    s = ifile.find("(")
+    e = ifile.find(")")
+    logging.debug("sample name :%s (%d,%d)" % (ifile[s+1:e], s, e))
+    if s < 0 or e < 0 or s > e:
+        logging.warning("Can't find sample name from %s" % ifile)
+        sys.exit(4)
+
+    sample_name = ifile[s+1:e]
+
     with open(ifile, 'r') as ifd:
         content = ifd.read().replace('<e2>', '')
 
     obj = xmltodict.parse(content)
     #print(json.dumps(obj))
 
-    for variant in obj["rr:ResultsReport"]["rr:ResultsPayload"]["variant-report"]["short-variants"]["short-variant"]:
-        #print(json.dumps(variant))
-        print("%s %s" % (variant['@position'], variant['@cds-effect']))
-    return
+    with open(ofile, "w") as ofd:
+        ofd.write(VCF_HEADER % sample_name)
 
-
-def xml1(ifile):
-
-    with open(ifile, 'r') as ifd:
-        content = ifd.read().replace('<e2>', '') #.replace('rr:', 'rr_')
-
-    obj = untangle.parse(content)
-    # SNP 2 VCF
-    # print(obj.rr_ResultsReport.rr_ResultsPayload.variant_report.short_variants)
-    for variant in obj.rr_ResultsReport.rr_ResultsPayload.variant_report.short_variants.iter():
-        print("＝》%s,%s" % (variant, variant['position']))
-    #TODO: CNV 2 VCF
-
-    return
-
-
-def xml(ifile):
-
-    ## Note: due to invalid xml format from FoundationOne
-    #tree = ET.parse(ifile)
-    #root = tree.getroot()
-
-    ## Note: xml parsing error due to <rr:*>
-    ## error message:
-    ##        xml.etree.ElementTree.ParseError: unbound prefix: line 2, column 0
-
-    ## Note: can't find any tags whose name contains '-'
-    ## e.g. /rr_ResultsReport/rr_ResultsPayload/variant-report/*
-
-    with open(ifile, 'r') as ifd:
-        content = ifd.read().replace('<e2>', '').replace('rr:', 'rr_')#.replace('B2-xyz', 'B2-xyz')
-    print(content)
-    root = ET.fromstring(content)
-    # tree = ET.XMLParser.feed(content)
-    # for elem in tree.iter():
-    #     print (elem.tag, elem.attrib)
-
-    # for child in root:
-    #     print("%s,%s" % (child.tag, child.attrib))
-
-    #selector = elementpath.Selector('/ResultsReport/ResultsPayload/variant-report/short-variants/*')
-    #selector = elementpath.Selector('/rr_ResultsReport/rr_ResultsPayload/FinalReport/*')
-    selector = elementpath.Selector('/rr_ResultsReport/rr_ResultsPayload/variant-report*/shrot-variants*/*')
-    #selector = elementpath.Selector('/rr_A/variant-report*/*')
-
-    print(selector.select(root))
-    for item in selector.select(root):
-        print("＝》%s,%s" % (item.tag, item.attrib))
-
+        for variant in obj["rr:ResultsReport"]["rr:ResultsPayload"]["variant-report"]["short-variants"]["short-variant"]:
+            logging.debug("\t%s %s" % (variant['@position'], variant['@cds-effect']))
+            var = SNP(variant)
+            ofd.write("%s\n" % (var.dump_vcf()))
     return
 
 
 def main(argv):
     ifile = ""
+    ofile = ""
+
+    logging.basicConfig(level=os.environ.get("LOGLEVEL", "DEBUG"))
 
     try:
-        opts, args = getopt.getopt(argv, "hi:")
+        opts, args = getopt.getopt(argv, "hi:o:")
     except getopt.GetoptError:
         usage()
         sys.exit(1)
@@ -128,6 +168,10 @@ def main(argv):
             sys.exit()
         elif opt == '-i':
             ifile = arg
+            if ofile == "":
+                ofile = "%s.vcf" % ifile
+        elif opt == '-o':
+            ofile = arg
 
     if ifile == "":
         print("Error: '-i' is required")
@@ -138,7 +182,7 @@ def main(argv):
         usage()
         sys.exit(3)
 
-    xml2(ifile)
+    xml2vcf(ifile, ofile)
 
     return
 
