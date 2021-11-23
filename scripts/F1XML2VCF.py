@@ -41,7 +41,17 @@ VCF_HEADER = '''##fileformat=VCFv4.1
 ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
 ##INFO=<ID=LEN,Number=A,Type=Integer,Description="allele length">
-##INFO=<ID=TYPE,Number=A,Type=String,Description="The type of allele, either snp, mnp, ins, del, or complex.">
+##INFO=<ID=END,Number=A,Type=Integer,Description="the end position for the sv">
+##INFO=<ID=TYPE,Number=A,Type=String,Description="The type of allele, either snp, mnp, ins, del, dup, or complex.">
+##INFO=<ID=HGVS,Number=A,Type=String,Description="the protein effect of the allele">
+##INFO=<ID=FUNCTIONAL,Number=A,Type=String,Description="the functional effect of the allele">
+##INFO=<ID=TRANSCRIPT,Number=A,Type=String,Description="the transcript of the allele">
+##INFO=<ID=GENE,Number=1,Type=String,Description="the gene name of the SV">
+##INFO=<ID=EXON,Number=1,Type=String,Description="the exon position of the SV">
+##INFO=<ID=COPYNUMBER,Number=1,Type=Integer,Description="the copy number of the SV">
+##INFO=<ID=RATIO,Number=1,Type=Float,Description="the copy ratio of the SV">
+##INFO=<ID=EQUIVOCAL,Number=1,Type=Bool,Description="the equivocal of the SV">
+##INFO=<ID=STATUS,Number=1,Type=String,Description="the status of the SV">
 ##contig=<ID=chr1,length=249250621,assembly=hg19>
 ##contig=<ID=chr2,length=243199373,assembly=hg19>
 ##contig=<ID=chr3,length=198022430,assembly=hg19>
@@ -71,9 +81,12 @@ VCF_HEADER = '''##fileformat=VCFv4.1
 ##source="F1CDx to VCF by ATGENOMIX v1.0"
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	%s
 '''
-QUAL_DEFAULT = 100
+QUAL_DEFAULT = "."
 FILTER_DEFAULT = "PASS"
 TYPE_SNP = "snp"
+TYPE_INS = "ins"
+TYPE_DUP = "dup"
+TYPE_DEL = "del"
 
 
 class SNP:
@@ -83,22 +96,35 @@ class SNP:
     def __init__(self, object):
         (chrom, pos) = object['@position'].split(":")
         s = object['@cds-effect'].find(">")
-        if s <= 0:
+        if s > 0:
+            self.type = TYPE_SNP
+            ref = object['@cds-effect'][s-1]
+            alt = object['@cds-effect'][s+1]
+            self.id = "%s_%s_%s>%s" % (chrom, pos, ref, alt)
+        elif object['@cds-effect'].find("ins") > 0:
+            self.type = TYPE_INS
+            ref = ""
+            alt = object['@cds-effect'][object['@cds-effect'].find("ins")+3:]
+            self.id = "%s_%s_%dins%s" % (chrom, pos, int(pos)+1, alt)
+        elif object['@cds-effect'].find('del'):
+            self.type = TYPE_DEL
+            ref = object['@cds-effect'][object['@cds-effect'].find("del")+3:]
+            alt = ""
+            self.id = "%s_%s_%ddel" % (chrom, pos, int(pos)+len(ref))
+        else:
             logging.warning("Can't find '>' in %s [%s]" % (object['@position'], object['@cds-effect']))
             return
-        ref = object['@cds-effect'][s-1]
-        alt = object['@cds-effect'][s+1]
 
         self.chrom = chrom
         self.pos = pos
         self.ref = ref
         self.alt = alt
-        self.id = "%s_%s_%s>%s" % (self.chrom, self.pos, self.ref, self.alt)
         self.qual = QUAL_DEFAULT
         self.filter = FILTER_DEFAULT
         self.len = 1
-        self.type = TYPE_SNP
-        self.info = "LEN=%d;TYPE=%s" % (self.len, self.type)
+        self.info = "LEN=%d;TYPE=%s;HGVS=%s;FUNCTIONAL=%s;GENE=%s;EQUIVOCAL=%s;STATUS=%s" % \
+                    (self.len, self.type, object['@protein-effect'], object['@functional-effect'],
+                     object['@gene'], object['@equivocal'], object['@status'])
         self.gt = "0/1"
         self.af = object['@allele-fraction']
         self.dp = object['@depth']
@@ -106,7 +132,39 @@ class SNP:
         self.format = "GT:AF:AO:DP\t%s:%s:%s:%s" % (self.gt, self.af, self.ao, self.dp)
 
     def dump_vcf(self):
-        result = "%s\t%s\t%s\t%s\t%s\t%d\t%s\t%s\t%s" % (self.chrom, self.pos, self.id, self.ref, self.alt, self.qual,
+        result = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s" % (self.chrom, self.pos, self.id, self.ref, self.alt, self.qual,
+                                                         self.filter, self.info, self.format)
+        return result
+
+
+class CNV:
+    """
+    CNV from F1CDx
+    """
+
+    def __init__(self, object):
+        (self.chrom, pos) = object['@position'].split(":")
+        (start, end) = pos.split("-")
+        self.alt = "DUP"
+        self.type = TYPE_DUP
+        if object['@type'] == 'loss':
+            self.alt = "DEL"
+            self.type = TYPE_DEL
+
+        self.pos = start
+        self.ref = "-"
+        self.id = "%s_%s_%s%s" % (self.chrom, self.pos, end, self.alt)
+        self.qual = QUAL_DEFAULT
+        self.filter = FILTER_DEFAULT
+        self.len = int(end) - int(start) + 1
+        self.info = "LEN=%d;TYPE=%s;END=%s;GENE=%s;EXON=%s;COPYNUMBER=%s;RATIO=%s;EQUIVOCAL=%s;STATUS=%s" \
+                    % (self.len, self.type, end, object['@gene'], object['@number-of-exons'], object['@copy-number'],
+                       object['@ratio'], object['@equivocal'], object['@status'])
+        self.gt = "0/1"
+        self.format = "GT\t%s" % self.gt
+
+    def dump_vcf(self):
+        result = "%s\t%s\t%s\t%s\t<%s>\t%s\t%s\t%s\t%s" % (self.chrom, self.pos, self.id, self.ref, self.alt, self.qual,
                                                          self.filter, self.info, self.format)
         return result
 
@@ -135,18 +193,25 @@ def xml2vcf(ifile, ofile):
     sample_name = ifile[s+1:e]
 
     with open(ifile, 'r') as ifd:
-        content = ifd.read().replace('<e2>', '')
+        content = ifd.read().replace('<e2>', '').replace('<c3>', '').replace('<85>', '')\
+            .replace('<c4>', '').replace('<97>', '').replace('<93>', '').replace('<9d>', '')\
+            .replace('<c5>', '').replace('<84>', '').replace('<c2>', '')
 
     obj = xmltodict.parse(content)
-    #print(json.dumps(obj))
 
     with open(ofile, "w") as ofd:
         ofd.write(VCF_HEADER % sample_name)
-
+        #SNV
         for variant in obj["rr:ResultsReport"]["rr:ResultsPayload"]["variant-report"]["short-variants"]["short-variant"]:
             logging.debug("\t%s %s" % (variant['@position'], variant['@cds-effect']))
             var = SNP(variant)
             ofd.write("%s\n" % (var.dump_vcf()))
+        # #CNV
+        # for variant in obj["rr:ResultsReport"]["rr:ResultsPayload"]["variant-report"]["copy-number-alterations"]["copy-number-alteration"]:
+        #     logging.debug("\t%s %s" % (variant['@position'], variant['@copy-number']))
+        #     var = CNV(variant)
+        #     ofd.write("%s\n" % (var.dump_vcf()))
+
     return
 
 
