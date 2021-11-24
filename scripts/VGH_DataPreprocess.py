@@ -31,7 +31,7 @@ import logging
 import glob
 from enum import Enum
 
-#CONST
+# CONST
 STR_ACTOncoPlus = "ACTOnco+"
 STR_F1CDx = "F1CDx"
 STR_ArcherFusionPlex = "ArcherFusionPlex"
@@ -49,9 +49,13 @@ PanelType = {STR_ACTOncoPlus: 1,
              STR_OncomineFocus: 6,
              STR_OncomineMyeloid: 7,
              STR_OncomineTMB: 8
-}
+             }
+
+TMP_FOLDER = "/tmp/unzip"
+CMD_RMTMP = "rm -rf %s" % TMP_FOLDER
 SRC = "/Users/chungtsai_su/src/github/AnomeINDEL/scripts"
 CMD_F1CDX = "python " + SRC + "/F1XML2VCF.py -i %s -o %s"
+CMD_UNZIP = "unzip %s -d " + TMP_FOLDER
 
 
 def usage():
@@ -68,35 +72,56 @@ def usage():
     print("\t-i: input folder")
     print("\t-o: output folder")
     print("Usage:")
-    print("\tpython ./VGH_DataPreprocess.py -t F1CDx -i ~/data/VGH-NGS/data/FoundationOne "
-          "-o ~/data/VGH-NGS/vcf/FoundationOne ")
+    print("\tpython ./VGH_DataPreprocess.py -t ACTOnco+ -i ~/data/VGH-NGS/data/行動基因 -o ~/data/VGH-NGS/vcf/ACTG")
+    print("\tpython ./VGH_DataPreprocess.py -t F1CDx -i ~/data/VGH-NGS/data/FoundationOne -o ~/data/VGH-NGS/vcf/FoundationOne")
+    print("\tpython ./VGH_DataPreprocess.py -t OncomineBRCA -i ~/data/VGH-NGS/data/OncomineBRCA -o ~/data/VGH-NGS/vcf/OncomineBRCA")
+    print("\tpython ./VGH_DataPreprocess.py -t OncomineFocus -i ~/data/VGH-NGS/data/OncomineFocus -o ~/data/VGH-NGS/vcf/OncomineFocus")
+    print("\tpython ./VGH_DataPreprocess.py -t OncomineMyeloid -i ~/data/VGH-NGS/data/OncomineMyeloid -o ~/data/VGH-NGS/vcf/OncomineMyeloid")
+    print("\tpython ./VGH_DataPreprocess.py -t OncomineTMB -i ~/data/VGH-NGS/data/OncomineTMB -o ~/data/VGH-NGS/vcf/OncomineTMB")
 
     return
 
-def extract_samplename(file):
-    s = file.find("(")
-    e = file.find(")")
-    logging.debug("sample name :%s (%d,%d)" % (file[s + 1:e], s, e))
-    if s < 0 or e < 0 or s > e:
-        logging.warning("Can't find sample name from %s" % file)
-        sys.exit(5)
 
-    return file[s + 1:e]
+def extract_samplename(file):
+    fn = os.path.basename(file)
+    s = fn.find("(")
+    e = fn.find(")")
+
+    if 0 < s < e:
+        logging.debug("sample name :%s (%d,%d) from %s" % (fn[s + 1:e], s, e, file))
+        return fn[s + 1:e]
+    else:
+        e = fn.find("_")
+        if e > 0:
+            logging.debug("Sample name :%s (0,%d) from %s" % (fn[:e], e, file))
+            return fn[:e]
+
+    logging.warning("Can't find sample name from %s" % fn)
+
+    return ""
 
 
 def actonco_preprocess(ifolder, ofolder):
-    for file in glob.glob(ifolder + "/*.xml"):
+    for file in glob.glob(ifolder + "/*.vcf"):
         logging.debug("%s" % file)
         sample_name = extract_samplename(file)
         logging.debug("Sample Name = %s" % sample_name)
+
+        ofile = "%s/%s.vcf" % (ofolder, sample_name)
+        with open(ofile, "w") as ofd:
+            ifd = open(file, "r")
+            for line in ifd:
+                if line.startswith("#CHROM"):
+                    items = line.strip().rsplit("\t", 1)
+                    ofd.write("%s\t%s\n" % (items[0], sample_name))
+                else:
+                    ofd.write("%s" % line)
+            ifd.close()
 
     return
 
 
 def f1cdx_preprocess(ifolder, ofolder):
-    if not os.path.isdir(ofolder):
-        os.mkdir(ofolder)
-
     for file in glob.glob(ifolder + "/*.xml"):
         if not os.path.isfile(file):
             logging.warning("WARNING: %s can't be found" % file)
@@ -105,12 +130,67 @@ def f1cdx_preprocess(ifolder, ofolder):
         sample_name = extract_samplename(file)
         logging.debug("Sample Name = %s" % sample_name)
         ofile = "%s/%s.vcf" % (ofolder, sample_name)
-        cmd = CMD_F1CDX % (file.replace('(', '\(').replace(')', '\)'), ofile)
+        cmd = CMD_F1CDX % (file.replace('(', '\(').replace(')', '\)').replace(' ', '\\ '), ofile)
         # subprocess.run(cmd)
         try:
-            res = subprocess.Popen(cmd, shell=True)
+            res = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
+            (output, err) = res.communicate()
+            p_status = res.wait()
         except IOError:
             logging.ERROR("WARNING: %s " % res.stderr)
+
+    return
+
+
+def oncomine_preprocess(ifolder, ofolder):
+    num_success = 0
+    for file in glob.glob(ifolder + "/*.zip"):
+        if not os.path.isfile(file):
+            logging.warning("WARNING: %s can't be found" % file)
+        try:
+            res = subprocess.Popen(CMD_RMTMP, stdout=subprocess.PIPE, shell=True)
+            (output, err) = res.communicate()
+            p_status = res.wait()
+        except IOError:
+            logging.ERROR("WARNING: %s " % res.stderr)
+
+        logging.debug("file = %s" % file)
+        sample_name = extract_samplename(file)
+        logging.debug("Sample Name = %s" % sample_name)
+        #unzip
+        cmd = CMD_UNZIP % file.replace(' ', '\\ ')
+        try:
+            logging.debug("%s" % cmd)
+            res = subprocess.Popen(r"%s" % cmd, stdout=subprocess.PIPE, shell=True)
+            (output, err) = res.communicate()
+            p_status = res.wait()
+        except IOError:
+            logging.ERROR("WARNING: %s " % res.stderr)
+
+        ofile = "%s/%s.vcf" % (ofolder, sample_name)
+
+        flist = glob.glob(TMP_FOLDER + "/Variants/*/*Non-Filtered*.vcf")
+        if len(flist) <= 0:
+            ## Note: for BR21014
+            flist = glob.glob(TMP_FOLDER + "/*/Variants/*/*Non-Filtered*.vcf")
+        for vcf in flist:
+            num_success += 1
+            logging.debug("vcf = %s" % vcf)
+            with open(ofile, "w") as ofd:
+                ifd = open(vcf, "r")
+                count = 0
+                for line in ifd:
+                    if line.startswith("#CHROM"):
+                        items = line.strip().rsplit("\t", 1)
+                        ofd.write("%s\t%s\n" % (items[0], sample_name))
+                    else:
+                        if not line.startswith("#"):
+                            count += 1
+                        ofd.write("%s" % line)
+                ifd.close()
+                logging.info("There are %d short variants in %s" % (count, sample_name))
+
+    logging.info("There are %d samples successfully processed." % num_success)
 
     return
 
@@ -120,7 +200,7 @@ def main(argv):
     ofolder = ""
     panel_type = ""
 
-    logging.basicConfig(level=os.environ.get("LOGLEVEL", "DEBUG"))
+    logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
     try:
         opts, args = getopt.getopt(argv, "ht:i:o:")
@@ -155,25 +235,22 @@ def main(argv):
         usage()
         sys.exit(4)
 
-    print("%s %d" % (panel_type, PanelType[panel_type]))
+    if not os.path.isdir(ofolder):
+        os.mkdir(ofolder)
+
     if panel_type == STR_ACTOncoPlus:
         actonco_preprocess(ifolder, ofolder)
     elif panel_type == STR_F1CDx:
         f1cdx_preprocess(ifolder, ofolder)
+    elif panel_type == STR_OncomineBRCA or panel_type == STR_OncomineFocus \
+            or panel_type == STR_OncomineMyeloid or panel_type == STR_OncomineTMB:
+        oncomine_preprocess(ifolder, ofolder)
 
     # match PanelType[panel_type]:
     #     case 1: #"ACTOnco+"
     #         actonco_preprocess(ifolder, ofolder)
     #     case 2: #"F1CDx"
     #         f1cdx_preprocess(ifolder, ofolder)
-    #     case 3: #"ArcherFusionPlex"
-    #
-    #     case 4: #"Guardant360"
-    #
-    #     case 5|6|7: #"OncomineBRCA"|"OncomineFocus"|"OncomineMyeloid"
-    #
-    #     case 8: #"OncomineTMB"
-    #
     #     case _:
     #         raise ValueError("Not a valid")
 

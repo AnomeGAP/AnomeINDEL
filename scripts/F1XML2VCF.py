@@ -27,6 +27,7 @@
 import sys
 import getopt
 import os
+import re
 from collections import defaultdict
 import json
 import logging
@@ -193,19 +194,23 @@ def xml2vcf(ifile, ofile):
     sample_name = ifile[s+1:e]
 
     with open(ifile, 'r') as ifd:
-        content = ifd.read().replace('<e2>', '').replace('<c3>', '').replace('<85>', '')\
-            .replace('<c4>', '').replace('<97>', '').replace('<93>', '').replace('<9d>', '')\
-            .replace('<c5>', '').replace('<84>', '').replace('<c2>', '')
+        content = re.sub(r"<[\w|\d]{2}>", "", ifd.read())
+        # content = ifd.read().replace('<e2>', '').replace('<c3>', '').replace('<85>', '')\
+        #     .replace('<c4>', '').replace('<97>', '').replace('<93>', '').replace('<9d>', '')\
+        #     .replace('<c5>', '').replace('<84>', '').replace('<c2>', '')
 
     obj = xmltodict.parse(content)
 
     with open(ofile, "w") as ofd:
         ofd.write(VCF_HEADER % sample_name)
+        num_snv = 0
         #SNV
         for variant in obj["rr:ResultsReport"]["rr:ResultsPayload"]["variant-report"]["short-variants"]["short-variant"]:
             logging.debug("\t%s %s" % (variant['@position'], variant['@cds-effect']))
             var = SNP(variant)
             ofd.write("%s\n" % (var.dump_vcf()))
+            num_snv += 1
+        logging.info("There are %d short variants in %s" % (num_snv, sample_name))
         # #CNV
         # for variant in obj["rr:ResultsReport"]["rr:ResultsPayload"]["variant-report"]["copy-number-alterations"]["copy-number-alteration"]:
         #     logging.debug("\t%s %s" % (variant['@position'], variant['@copy-number']))
@@ -219,7 +224,7 @@ def main(argv):
     ifile = ""
     ofile = ""
 
-    logging.basicConfig(level=os.environ.get("LOGLEVEL", "DEBUG"))
+    logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
     try:
         opts, args = getopt.getopt(argv, "hi:o:")
