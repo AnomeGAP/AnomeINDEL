@@ -29,6 +29,7 @@ import getopt
 import os
 import logging
 import glob
+import re
 from collections import defaultdict
 
 # CONST
@@ -700,6 +701,7 @@ def oncomine_preprocess(ifolder, ofolder):
         sample_name = extract_samplename(file)
         logging.debug("Sample Name = %s" % sample_name)
         state = -1
+        sub_state = -1
         h_sample = create_record()
         if len(sample_name) > 5:
             h_sample[COL_SAMPLENAME] = sample_name
@@ -725,9 +727,16 @@ def oncomine_preprocess(ifolder, ofolder):
                     if len(items) <= 1:     # MP No.:PG21005
                         items = line.strip().split(":", 1)
                     if h_sample[COL_SAMPLENAME] != items[1].strip().replace("/ ", "_").replace("/", "_"):
-                        logging.warning("Sample Name of %s is not %s" % (items[1], h_sample[COL_SAMPLENAME]))
+                        logging.debug("Sample Name of %s is not %s" % (items[1], h_sample[COL_SAMPLENAME]))
                         if len(h_sample[COL_SAMPLENAME]) <= len(items[1].strip().replace("/ ", "_").replace("/", "_")):
                             h_sample[COL_SAMPLENAME] = items[1].strip().replace("/ ", "_").replace("/", "_")
+
+                    # NOTE： fix Wrong Sample Name (e.g. F1901 ==> F19001)
+                    no = re.search(r'(\D+)(\d+)', h_sample[COL_SAMPLENAME], re.M| re.I)
+                    if len(no.group(2)) == 4:
+                        logging.debug("SampleName[%s] has %d digits [%s], %d chars [%s]" % (
+                        h_sample[COL_SAMPLENAME], len(no.group(2)), no.group(2), len(no.group(1)), no.group(1)))
+                        h_sample[COL_SAMPLENAME] = "%s%s0%s" % (no.group(1), no.group(2)[:2], no.group(2)[2:])
                     logging.debug("%s = %s" % (SM_ONCOMINE[state], h_sample[COL_SAMPLENAME]))
                 elif state == 4:  # Sample Type
                     items = line.strip().split(": ", 1)
@@ -740,19 +749,60 @@ def oncomine_preprocess(ifolder, ofolder):
                 elif state == 6:    # Analytic Interpretation
                     break
             elif state == 1:
-                logging.debug("state = 1: %s" % line.strip())
-                if line.startswith("(Gene, Protein Change") or line.startswith("Note") \
-                        or line.startswith("Please refer to Picture") \
+                logging.debug("state = 1 (sub_state=%d): %s" % (sub_state, line.strip()))
+                if line.startswith("(Gene") or line.startswith("Note") or line.startswith("--")\
+                        or line.startswith("Please refer to Picture") or line.startswith("Relevant Biomarkers")\
                         or line.startswith('No relevant biomarkers found in this sample.'):
+                    sub_state = -1
                     continue
-                elif line.find("(Gene, Protein Change") >= 0:
+                elif line.find("Tumor Mutational Burden") >= 0:
+                    sub_state = -1
+                    items = line.strip().split(":")[1].strip().split(" ")
+                    h_sample[COL_TMB] = items[0].strip()
+                    logging.debug("TMB=[%f]" % float(h_sample[COL_TMB]))
+                elif line.find("deletion") >= 0:
                     sub_state = 1
-                elif line.find("deletion"):
                     if COL_HETERODEL not in h_sample or h_sample[COL_HETERODEL] == STR_NA:
                         h_sample[COL_HETERODEL] = line.strip()
                     else:
                         h_sample[COL_HETERODEL] += "; %s" % line.strip()
+                elif line.find("amplification") >= 0:
+                    sub_state = 2
+                    if COL_CNV not in h_sample or h_sample[COL_CNV] == STR_NA:
+                        h_sample[COL_CNV] = line.strip()
+                    else:
+                        h_sample[COL_CNV] += "; %s" % line.strip()
+                elif line.find("fusion") >= 0:
+                    sub_state = 3
+                    if COL_FUSION not in h_sample or h_sample[COL_FUSION] == STR_NA:
+                        h_sample[COL_FUSION] = line.strip()
+                    else:
+                        h_sample[COL_FUSION] += "; %s" % line.strip()
+                elif line.find("Gene:") >= 0:
+                    sub_state = -1
+                    if COL_SNPINDEL not in h_sample or h_sample[COL_SNPINDEL] == STR_NA:
+                        h_sample[COL_SNPINDEL] = line.strip()
+                    elif line.find("Gene") >= 0:
+                        h_sample[COL_SNPINDEL] += "; %s" % line.strip()
+                    else:
+                        h_sample[COL_SNPINDEL] += ", %s" % line.strip()
+                elif sub_state == 1:
+                    if COL_HETERODEL not in h_sample or h_sample[COL_HETERODEL] == STR_NA:
+                        h_sample[COL_HETERODEL] = line.strip()
+                    else:
+                        h_sample[COL_HETERODEL] += "; %s" % line.strip()
+                elif sub_state == 2:
+                    if COL_CNV not in h_sample or h_sample[COL_CNV] == STR_NA:
+                        h_sample[COL_CNV] = line.strip()
+                    else:
+                        h_sample[COL_CNV] += "; %s" % line.strip()
+                elif sub_state == 3:
+                    if COL_FUSION not in h_sample or h_sample[COL_FUSION] == STR_NA:
+                        h_sample[COL_FUSION] = line.strip()
+                    else:
+                        h_sample[COL_FUSION] += "; %s" % line.strip()
                 else:
+                    sub_state = -1
                     if COL_SNPINDEL not in h_sample or h_sample[COL_SNPINDEL] == STR_NA:
                         h_sample[COL_SNPINDEL] = line.strip()
                     elif line.find("Gene") >= 0:
@@ -784,6 +834,7 @@ def oncomine_preprocess(ifolder, ofolder):
         logging.debug("Homo DEL = %s" % h_sample[COL_HOMODEL])
         logging.debug("Hetero DEL = %s" % h_sample[COL_HETERODEL])
         logging.debug("Fusion = %s" % h_sample[COL_FUSION])
+        logging.debug("TMB = %s" % h_sample[COL_TMB])
         ofd.close()
         # break
     return
