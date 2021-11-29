@@ -52,6 +52,7 @@ PanelType = {STR_ACTOncoPlus: 1,
              STR_OncomineTMB: 8
              }
 
+STR_NA_TMB = '-1'
 STR_NA = "NA"
 STR_MSS = "MSS"
 STR_MSIH = "MSI-H"
@@ -108,7 +109,7 @@ SM_ACTG = ['Test Name',
            ]
 
 SM_F1 = ['Test Name',
-         'Blood Tumor Mutational Burden',
+         'Blood Tumor Mutation',
          'Microsatellite Status',
          'Tumor Mutation Burden',
          'Tumor Fraction',
@@ -217,6 +218,7 @@ def create_record():
     h[COL_HOMODEL] = STR_NA
     h[COL_HETERODEL] = STR_NA
     h[COL_FUSION] = STR_NA
+    h[COL_TMB] = STR_NA_TMB
     return h
 
 
@@ -245,7 +247,7 @@ def actonco_preprocess(ifolder, ofolder):
                     logging.debug("Test Name = %s" % h_sample[COL_TESTNAME])
                 elif state == 5:  # TMB
                     if line.find("Cannot be determined") >= 0:
-                        h_sample[COL_TMB] = "-1"
+                        h_sample[COL_TMB] = STR_NA_TMB
                     else:
                         items = line.strip().split(": ", 1)
                         if items[1].find("<") >= 0:
@@ -415,9 +417,9 @@ def f1cdx_preprocess(ifolder, ofolder):
                     elif items[1].find(STR_MSIH):
                         h_sample[COL_MSI] = STR_MSIH
                     logging.debug("MSI = %s" % h_sample[COL_MSI])
-                elif state == 3:  # Blood Tumor Mutational Burden
+                elif state == 3:  # Tumor Mutational Burden
                     if line.find("Cannot Be Determined") >= 1:
-                        h_sample[COL_TMB] = -1
+                        h_sample[COL_TMB] = STR_NA_TMB
                     else:
                         items = line.strip().split("- ", 1)
                         h_sample[COL_TMB] = items[1].split(" ")[0]
@@ -846,7 +848,7 @@ def main(argv):
     ofolder = ""
     panel_type = ""
 
-    logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
+    logging.basicConfig(level=os.environ.get("LOGLEVEL", "DEBUG"))
 
     try:
         opts, args = getopt.getopt(argv, "ht:i:o:")
