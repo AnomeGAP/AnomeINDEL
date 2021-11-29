@@ -72,18 +72,19 @@ COL_QCCOVERAGE100X = "Coverage100X"
 COL_QCUNIFORMITYOVER80 = "UniformityOver80%"
 COL_QCONTARGETOVER90 = "OnTargetOver90%"
 COL_QCRNASTARTSITESPERCONTROLGSP2OVER10 = "AverageUniqueRNAStartSitesPerControlGSP2Over10"
+COL_MSI = "MSI"
+COL_TMB = "TMB"
 COL_SNPINDEL = "SNP_INDEL"
 COL_CNV = "CNV"
 COL_HOMODEL = "HomoDEL"
 COL_HETERODEL = "HeteroDEL"
 COL_FUSION = "Fusion"
-COL_MSI = "MSI"
-COL_TMB = "TMB"
+
 
 COLUME = [COL_SAMPLENAME, COL_TESTNAME, COL_BLOCKNUMBER, COL_SAMPLETYPE, COL_TISSUEORIGIN, COL_PATHOLOGICDIAGNOSIS,
           COL_TUMORPERCENTAGE, COL_BONEMARROWASIRATIONDATE, COL_QCMEANDEPTH, COL_QCCOVERAGE100X, COL_QCUNIFORMITYOVER80,
-          COL_QCONTARGETOVER90, COL_QCRNASTARTSITESPERCONTROLGSP2OVER10, COL_SNPINDEL, COL_CNV, COL_HOMODEL,
-          COL_HETERODEL, COL_FUSION, COL_MSI, COL_TMB]
+          COL_QCONTARGETOVER90, COL_QCRNASTARTSITESPERCONTROLGSP2OVER10, COL_MSI, COL_TMB, COL_SNPINDEL, COL_CNV, COL_HOMODEL,
+          COL_HETERODEL, COL_FUSION]
 
 SM_ACTG = ['Test Name',
            'Single Nucleotide',
@@ -642,18 +643,18 @@ def guardant_preprocess(ifolder, ofolder):
                             h_sample[COL_MSI] = STR_MSIH
                     elif line.find("Amplification") >= 0:
                         if COL_CNV not in h_sample or h_sample[COL_CNV] == STR_NA:
-                            h_sample[COL_CNV] = line.strip()
+                            h_sample[COL_CNV] = line.strip().replace("\t", " ")
                         else:
-                            h_sample[COL_CNV] += "; %s" % line.strip()
+                            h_sample[COL_CNV] += "; %s" % line.strip().replace("\t", " ")
                     elif line.find("Deletion") >= 0:
                         if COL_HETERODEL not in h_sample or h_sample[COL_HETERODEL] == STR_NA:
-                            h_sample[COL_HETERODEL] = line.strip()
+                            h_sample[COL_HETERODEL] = line.strip().replace("\t", " ")
                         else:
-                            h_sample[COL_HETERODEL] += "; %s" % line.strip()
+                            h_sample[COL_HETERODEL] += "; %s" % line.strip().replace("\t", " ")
                     elif COL_SNPINDEL not in h_sample or h_sample[COL_SNPINDEL] == STR_NA:
-                        h_sample[COL_SNPINDEL] = line.strip()
+                        h_sample[COL_SNPINDEL] = line.strip().replace("\t", " ")
                     else:
-                        h_sample[COL_SNPINDEL] += "; %s" % line.strip()
+                        h_sample[COL_SNPINDEL] += "; %s" % line.strip().replace("\t", " ")
                 elif sub_state == 2:
                     if line.find("NOT DETECTED"):
                         h_sample[COL_MSI] = STR_MSS
@@ -663,11 +664,11 @@ def guardant_preprocess(ifolder, ofolder):
                     sub_state = 2
                 else:
                     if COL_SNPINDEL not in h_sample or h_sample[COL_SNPINDEL] == STR_NA:
-                        h_sample[COL_SNPINDEL] = line.strip()
+                        h_sample[COL_SNPINDEL] = line.strip().replace("\t", " ")
                     elif line.find("Gene") >= 0:
-                        h_sample[COL_SNPINDEL] += "; %s" % line.strip()
+                        h_sample[COL_SNPINDEL] += "; %s" % line.strip().replace("\t", " ")
                     else:
-                        h_sample[COL_SNPINDEL] += ", %s" % line.strip()
+                        h_sample[COL_SNPINDEL] += ", %s" % line.strip().replace("\t", " ")
             elif state == 5:  # NGS QC parameters
                 if line.find("Average depth") >= 0:
                     items = line.split(".", 1)

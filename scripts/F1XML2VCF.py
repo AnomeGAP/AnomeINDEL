@@ -51,7 +51,7 @@ VCF_HEADER = '''##fileformat=VCFv4.1
 ##INFO=<ID=EXON,Number=1,Type=String,Description="the exon position of the SV">
 ##INFO=<ID=COPYNUMBER,Number=1,Type=Integer,Description="the copy number of the SV">
 ##INFO=<ID=RATIO,Number=1,Type=Float,Description="the copy ratio of the SV">
-##INFO=<ID=EQUIVOCAL,Number=1,Type=Bool,Description="the equivocal of the SV">
+##INFO=<ID=EQUIVOCAL,Number=.,Type=String,Description="the equivocal of the SV">
 ##INFO=<ID=STATUS,Number=1,Type=String,Description="the status of the SV">
 ##contig=<ID=chr1,length=249250621,assembly=hg19>
 ##contig=<ID=chr2,length=243199373,assembly=hg19>
@@ -97,6 +97,7 @@ class SNP:
     def __init__(self, object):
         (chrom, pos) = object['@position'].split(":")
         s = object['@cds-effect'].find(">")
+        self.len = 1
         if s > 0:
             self.type = TYPE_SNP
             ref = object['@cds-effect'][s-1]
@@ -106,11 +107,24 @@ class SNP:
             self.type = TYPE_INS
             ref = ""
             alt = object['@cds-effect'][object['@cds-effect'].find("ins")+3:]
+            self.len = len(alt)
             self.id = "%s_%s_%dins%s" % (chrom, pos, int(pos)+1, alt)
         elif object['@cds-effect'].find('del'):
             self.type = TYPE_DEL
-            ref = object['@cds-effect'][object['@cds-effect'].find("del")+3:]
-            alt = ""
+            if object['@strand'] == "-":
+                ref = object['@cds-effect'][object['@cds-effect'].find("del")+4:][::-1]
+            else:
+                ref = object['@cds-effect'][object['@cds-effect'].find("del")+3:]
+            ## Note : Correct Chrom Position for F1CDx
+            if chrom == 'chr3' and pos == '178927977':
+                pos = '178927978'
+            elif chrom == 'chr4' and pos == '55593602':
+                pos = '55593603'
+            elif chrom == 'chr7' and pos == '55242464':
+                pos = '55242465'
+
+            alt = "-"
+            self.len = len(ref)
             self.id = "%s_%s_%ddel" % (chrom, pos, int(pos)+len(ref))
         else:
             logging.warning("Can't find '>' in %s [%s]" % (object['@position'], object['@cds-effect']))
@@ -122,7 +136,30 @@ class SNP:
         self.alt = alt
         self.qual = QUAL_DEFAULT
         self.filter = FILTER_DEFAULT
-        self.len = 1
+
+        ## Note : Correct Chrom Position for F1CDx
+        if s > 0:
+            if object['@strand'] == "-":
+                self.ref = self.complement(self.ref)
+                self.alt = self.complement(self.alt)
+
+            # if self.chrom == "chr1" and self.pos == "45797760":
+            #     self.ref = "T"
+            # elif self.chrom == "chr2" and self.pos == "25467449":
+            #     self.ref = "C"
+            # elif self.chrom == "chr2" and self.pos == "61715367":
+            #     self.ref = "C"
+            # elif self.chrom == "chr2" and self.pos == "198267491":
+            #     self.ref = "C"
+            # elif self.chrom == "chr2" and self.pos == "209108185":
+            #     self.ref = "G"
+            # elif self.chrom == "chr2" and self.pos == "215674224":
+            #     self.ref = "G"
+            # elif self.chrom == "chr3" and self.pos == "138453486":
+            #     self.ref = "C"
+
+            self.id = "%s_%s_%s>%s" % (self.chrom, self.pos, self.ref, self.alt)
+
         self.info = "LEN=%d;TYPE=%s;HGVS=%s;FUNCTIONAL=%s;GENE=%s;EQUIVOCAL=%s;STATUS=%s" % \
                     (self.len, self.type, object['@protein-effect'], object['@functional-effect'],
                      object['@gene'], object['@equivocal'], object['@status'])
@@ -131,6 +168,16 @@ class SNP:
         self.dp = object['@depth']
         self.ao = int(float(self.dp)*float(self.af))
         self.format = "GT:AF:AO:DP\t%s:%s:%s:%s" % (self.gt, self.af, self.ao, self.dp)
+
+    def complement(self, ref):
+        if ref == 'A':
+            return 'T'
+        elif ref == 'T':
+            return 'A'
+        elif ref == 'C':
+            return 'G'
+        else:
+            return 'C'
 
     def dump_vcf(self):
         result = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s" % (self.chrom, self.pos, self.id, self.ref, self.alt, self.qual,
