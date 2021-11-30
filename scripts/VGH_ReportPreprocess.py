@@ -55,6 +55,7 @@ PanelType = {STR_ACTOncoPlus: 1,
 STR_NA_TMB = '-1'
 STR_NA = "NA"
 STR_MSS = "MSS"
+STR_MSS2 = "MS-Stable"
 STR_MSIH = "MSI-H"
 STR_MSIL = "MSI-L"
 STR_PASS = "Pass"
@@ -121,6 +122,7 @@ SM_F1 = ['Test Name',
          'Tumor Percentage',
          'NGS QC parameters',
          'TBD',
+         'TBD',
          'TBD'
          ]
 
@@ -152,7 +154,7 @@ SM_ONCOMINE = ['Test Name',
                'MP No.',
                'Sample Type',
                'NGS QC parameters',
-               'Analytic Interpreation',
+               'Analytic Interpretation',
                'TBD',
                'TBD'
                ]
@@ -258,16 +260,16 @@ def actonco_preprocess(ifolder, ofolder):
                 elif state == 6:  # MSI
                     h_sample[COL_MSI] = "NA"
                     items = line.split(": ", 1)
-                    if items[1].find(STR_MSS):
+                    if items[1].find(STR_MSS) >= 0:
                         h_sample[COL_MSI] = STR_MSS
-                    elif items[1].find(STR_MSIL):
+                    elif items[1].find(STR_MSIL) >= 0:
                         h_sample[COL_MSI] = STR_MSIL
-                    elif items[1].find(STR_MSIH):
+                    elif items[1].find(STR_MSIH) >= 0:
                         h_sample[COL_MSI] = STR_MSIH
                     logging.debug("MSI = %s" % h_sample[COL_MSI])
                 elif state == 7:  # Fusion
-                    if line.find("Not detected") or line.find("Not tested") or \
-                            line.find("The fusion sequencing data did not pass the QC criteria"):
+                    if line.find("Not detected") >= 0 or line.find("Not tested") >=0 or \
+                            line.find("The fusion sequencing data did not pass the QC criteria") >= 0:
                         h_sample[COL_FUSION] = "NA"
                     else:
                         items = line.strip().split(": ", 1)
@@ -391,6 +393,9 @@ def f1cdx_preprocess(ifolder, ofolder):
         if len(sample_name) > 5:
             h_sample[COL_SAMPLENAME] = sample_name
 
+        if sample_name != "PF21018":
+            continue
+
         ifd = open(file, "r", encoding='utf-8', errors='ignore')
         for line in ifd:
             if len(line.strip()) == 0:
@@ -403,20 +408,20 @@ def f1cdx_preprocess(ifolder, ofolder):
                     items = line.strip().split(": ", 1)
                     h_sample[COL_TESTNAME] = items[1]
                     logging.debug("Test Name = %s" % h_sample[COL_TESTNAME])
-                elif state == 1:  # Blood Tumor Mutational Burden
-                    items = line.strip().split("- ", 1)
-                    h_sample[COL_TMB] = items[1].split(" ")[0]
+                elif state == 1:  # Blood Tumor Mutation
+                    items = line.strip().split("-", 1)
+                    h_sample[COL_TMB] = items[1].strip().split(" ")[0]
                     logging.debug("TMB = %f" % float(h_sample[COL_TMB]))
                 elif state == 2:  # MSI
                     h_sample[COL_MSI] = "NA"
                     items = line.split("-", 1)
-                    if items[1].find(STR_MSS):
+                    if items[1].find(STR_MSS) >= 0 or items[1].find(STR_MSS2) >= 0:
                         h_sample[COL_MSI] = STR_MSS
-                    elif items[1].find(STR_MSIL):
+                    elif items[1].find(STR_MSIL) >= 0:
                         h_sample[COL_MSI] = STR_MSIL
-                    elif items[1].find(STR_MSIH):
+                    elif items[1].find(STR_MSIH) >= 0:
                         h_sample[COL_MSI] = STR_MSIH
-                    logging.debug("MSI = %s" % h_sample[COL_MSI])
+                    logging.debug("MSI = [%s]" % h_sample[COL_MSI])
                 elif state == 3:  # Tumor Mutational Burden
                     if line.find("Cannot Be Determined") >= 1:
                         h_sample[COL_TMB] = STR_NA_TMB
@@ -461,7 +466,17 @@ def f1cdx_preprocess(ifolder, ofolder):
                 logging.debug(
                     "STATE %d=>%d due to match (%s) from %s" % (state, state + 2, SM_F1[state + 2], line.strip()))
                 state += 2
-                if state == 4:  #Tumor Fraction
+                if state == 2:  # MSI
+                    h_sample[COL_MSI] = "NA"
+                    items = line.split("-", 1)
+                    if items[1].find(STR_MSS) >= 0 or items[1].find(STR_MSS2) >= 0:
+                        h_sample[COL_MSI] = STR_MSS
+                    elif items[1].find(STR_MSIL) >= 0:
+                        h_sample[COL_MSI] = STR_MSIL
+                    elif items[1].find(STR_MSIH) >= 0:
+                        h_sample[COL_MSI] = STR_MSIH
+                    logging.debug("MSI = [%s]" % h_sample[COL_MSI])
+                elif state == 4:  #Tumor Fraction
                     items = line.strip().split("- ", 1)
                     h_sample[COL_TUMORPERCENTAGE] = items[1]
                     logging.debug("Tumor Percentage = %s" % h_sample[COL_TUMORPERCENTAGE])
@@ -478,6 +493,10 @@ def f1cdx_preprocess(ifolder, ofolder):
                     else:
                         h_sample[COL_QCMEANDEPTH] = items[1].split(" ")[-1]
                     logging.debug("%s = %s" % (SM_F1[state], h_sample[COL_QCMEANDEPTH]))
+            elif line.startswith(SM_F1[state + 3]):
+                logging.debug(
+                        "STATE %d=>%d due to match (%s) from %s" % (state, state + 2, SM_F1[state + 2], line.strip()))
+                state += 3
             elif state == 5:
                 if line.startswith("For a complete list of ") or line.startswith("Note") \
                         or line.startswith("Please refer to Picture"):
@@ -499,6 +518,8 @@ def f1cdx_preprocess(ifolder, ofolder):
             else:
                 ofd.write("\t%s" % h_sample[COLUME[idx]])
         ofd.write("\n")
+        logging.debug("MSI = %s" % h_sample[COL_MSI])
+        logging.debug("TMB = %s" % h_sample[COL_TMB])
         logging.debug("SNP = %s" % h_sample[COL_SNPINDEL])
         logging.debug("CNV = %s" % h_sample[COL_CNV])
         logging.debug("Homo DEL = %s" % h_sample[COL_HOMODEL])
@@ -658,7 +679,7 @@ def guardant_preprocess(ifolder, ofolder):
                     else:
                         h_sample[COL_SNPINDEL] += "; %s" % line.strip().replace("\t", " ")
                 elif sub_state == 2:
-                    if line.find("NOT DETECTED"):
+                    if line.find("NOT DETECTED") >= 0:
                         h_sample[COL_MSI] = STR_MSS
                     else:
                         h_sample[COL_MSI] = STR_MSIH
